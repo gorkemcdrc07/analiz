@@ -2,9 +2,8 @@
 import React, { useMemo, useState, useEffect } from "react";
 import {
     Box,
-    Dialog,
-    DialogTitle,
-    DialogContent,
+    AppBar,
+    Toolbar,
     IconButton,
     Typography,
     Stack,
@@ -16,7 +15,6 @@ import {
     MenuItem,
     Chip,
     CircularProgress,
-    alpha,
     Paper,
     Tooltip,
     TextField,
@@ -24,18 +22,23 @@ import {
     ToggleButton,
     ToggleButtonGroup,
     InputAdornment,
+    useTheme,
+    Drawer,
+    useMediaQuery,
+    alpha,
 } from "@mui/material";
+
 import CloseIcon from "@mui/icons-material/Close";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import RestartAltRoundedIcon from "@mui/icons-material/RestartAltRounded";
 import BoltRoundedIcon from "@mui/icons-material/BoltRounded";
-import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import TableRowsRoundedIcon from "@mui/icons-material/TableRowsRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import SwapVertRoundedIcon from "@mui/icons-material/SwapVertRounded";
 import CompressRoundedIcon from "@mui/icons-material/CompressRounded";
 import ExpandRoundedIcon from "@mui/icons-material/ExpandRounded";
+import MenuIcon from "@mui/icons-material/Menu";
 
 import { supabase } from "../supabaseClient";
 import { calcKpi } from "../utils/compareEngine";
@@ -105,56 +108,36 @@ const REGIONS = {
 const allProjects = Object.values(REGIONS).flat();
 
 /* ------------------------ UI helpers ------------------------ */
-function MetricPill({ label, value, tone = "dark" }) {
-    const cfg =
-        tone === "good"
-            ? { bg: alpha("#10b981", 0.14), fg: "#065f46", bd: alpha("#10b981", 0.22) }
-            : tone === "warn"
-                ? { bg: alpha("#f59e0b", 0.14), fg: "#92400e", bd: alpha("#f59e0b", 0.22) }
-                : tone === "bad"
-                    ? { bg: alpha("#ef4444", 0.14), fg: "#991b1b", bd: alpha("#ef4444", 0.22) }
-                    : { bg: alpha("#0f172a", 0.06), fg: "#0f172a", bd: alpha("#0f172a", 0.12) };
-
-    return (
-        <Chip
-            size="small"
-            label={
-                <span>
-                    <b style={{ fontWeight: 1000 }}>{label}:</b> {value}
-                </span>
-            }
-            sx={{
-                height: 26,
-                borderRadius: 999,
-                fontWeight: 900,
-                bgcolor: cfg.bg,
-                color: cfg.fg,
-                border: `1px solid ${cfg.bd}`,
-                backdropFilter: "blur(10px)",
-            }}
-        />
-    );
-}
-
 function SectionTitle({ icon, title, sub }) {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === "dark";
+    const bd = alpha(theme.palette.divider, isDark ? 0.55 : 1);
+
     return (
-        <Stack direction="row" spacing={1.1} alignItems="center">
+        <Stack direction="row" spacing={1.2} alignItems="center">
             <Box
                 sx={{
-                    width: 36,
-                    height: 36,
+                    width: 40,
+                    height: 40,
                     borderRadius: 999,
                     display: "grid",
                     placeItems: "center",
-                    bgcolor: alpha("#0f172a", 0.06),
-                    border: `1px solid ${alpha("#0f172a", 0.1)}`,
+                    bgcolor: alpha(theme.palette.text.primary, isDark ? 0.08 : 0.06),
+                    border: `1px solid ${bd}`,
+                    backdropFilter: "blur(10px)",
                 }}
             >
                 {icon}
             </Box>
             <Box>
-                <Typography sx={{ fontWeight: 1200, color: "#0f172a", letterSpacing: "-0.25px" }}>{title}</Typography>
-                {sub ? <Typography sx={{ fontWeight: 850, color: "#64748b", fontSize: "0.82rem", mt: 0.1 }}>{sub}</Typography> : null}
+                <Typography sx={{ fontWeight: 1200, letterSpacing: "-0.35px", lineHeight: 1.1 }}>
+                    {title}
+                </Typography>
+                {sub ? (
+                    <Typography sx={{ fontWeight: 850, color: theme.palette.text.secondary, fontSize: "0.82rem", mt: 0.2 }}>
+                        {sub}
+                    </Typography>
+                ) : null}
             </Box>
         </Stack>
     );
@@ -175,8 +158,6 @@ function fmtInt(n) {
     if (!Number.isFinite(x)) return "-";
     return new Intl.NumberFormat("tr-TR").format(Math.round(x));
 }
-
-// ✅ Daha doğru trend hesabı (küçük bazlarda göstermesin)
 function pctChange(newVal, baseVal, { minBase = 5 } = {}) {
     const n = Number(newVal);
     const b = Number(baseVal);
@@ -215,25 +196,18 @@ function mapRawToEngineRow(r) {
         ProjectName: r.proje,
         ServiceName: r.hizmet_tipi,
         SubServiceName: r.hizmet_tipi ?? "",
-
         TMSVehicleRequestDocumentNo: r.pozisyon_no,
         TMSDespatchDocumentNo: r.sefer_no,
-
         OrderStatu: statusCode,
-
         PickupCityName: r.yukleme_ili,
         PickupCountyName: r.yukleme_ilcesi,
         DeliveryCityName: r.teslim_ili,
         DeliveryCountyName: r.teslim_ilcesi,
-
         VehicleWorkingName: r.arac_calisma_tipi,
         IsPrint: isPrintBool,
-
         TMSDespatchCreatedDate: r.sefer_acilis_zamani,
         PickupDate: r.yukleme_tarihi,
-
         OrderCreatedDate: r.effective_ts ?? r.yukleme_ts,
-
         _raw: r,
     };
 }
@@ -342,101 +316,128 @@ function forecastWeekSplitsFromPrevMonth(prevW1, prevW2, prevW3, prevFull, nextM
     };
 }
 
-/* ------------------------ Cells: centered number + modern trend ------------------------ */
-function TrendPill({ pct }) {
+/* ------------------------ Aesthetic tokens ------------------------ */
+function useShellStyles() {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === "dark";
+
+    const border = `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}`;
+
+    const pageBg = isDark
+        ? `radial-gradient(1100px 700px at 10% 0%, ${alpha("#3b82f6", 0.18)}, transparent 55%),
+       radial-gradient(900px 600px at 90% 10%, ${alpha("#10b981", 0.12)}, transparent 55%),
+       radial-gradient(1000px 800px at 60% 95%, ${alpha("#f43f5e", 0.10)}, transparent 60%),
+       linear-gradient(180deg, ${alpha("#0b1220", 0.98)}, ${alpha("#070c16", 0.98)})`
+        : `radial-gradient(1100px 700px at 10% 0%, ${alpha("#3b82f6", 0.16)}, transparent 55%),
+       radial-gradient(900px 600px at 90% 10%, ${alpha("#10b981", 0.10)}, transparent 55%),
+       radial-gradient(1000px 800px at 60% 95%, ${alpha("#f43f5e", 0.08)}, transparent 60%),
+       linear-gradient(180deg, ${alpha("#ffffff", 0.96)}, ${alpha("#f8fafc", 0.96)})`;
+
+    const glass = (strength = 0.72) => ({
+        bgcolor: isDark ? alpha("#0b1220", strength) : alpha("#ffffff", strength),
+        border,
+        backdropFilter: "blur(16px)",
+        boxShadow: isDark ? "0 22px 70px rgba(0,0,0,0.55)" : "0 18px 60px rgba(15,23,42,0.10)",
+    });
+
+    const softInput = {
+        "& .MuiOutlinedInput-root": {
+            borderRadius: 3,
+            bgcolor: isDark ? alpha("#0b1220", 0.55) : alpha("#ffffff", 0.75),
+            backdropFilter: "blur(10px)",
+        },
+    };
+
+    const primaryBtn = {
+        borderRadius: 3,
+        fontWeight: 1100,
+        textTransform: "none",
+        px: 1.6,
+        ...(isDark
+            ? { bgcolor: "#e2e8f0", color: "#0b1220", "&:hover": { bgcolor: "#f1f5f9" } }
+            : { bgcolor: "#0f172a", color: "#fff", "&:hover": { bgcolor: "#111827" } }),
+    };
+
+    const outlineBtn = {
+        borderRadius: 3,
+        fontWeight: 1000,
+        textTransform: "none",
+        bgcolor: isDark ? alpha("#0b1220", 0.55) : alpha("#ffffff", 0.55),
+        borderColor: alpha(theme.palette.divider, isDark ? 0.6 : 1),
+        backdropFilter: "blur(12px)",
+    };
+
+    return { isDark, border, pageBg, glass, softInput, primaryBtn, outlineBtn };
+}
+
+/* ------------------------ Small UI bits ------------------------ */
+function KpiCard({ title, value, sub, tone = "neutral" }) {
+    const theme = useTheme();
+    const { isDark, border, glass } = useShellStyles();
+
+    const toneCfg =
+        tone === "good"
+            ? { bg: alpha("#10b981", isDark ? 0.16 : 0.10), fg: isDark ? "#86efac" : "#065f46", bd: alpha("#10b981", isDark ? 0.26 : 0.18) }
+            : tone === "warn"
+                ? { bg: alpha("#f59e0b", isDark ? 0.16 : 0.10), fg: isDark ? "#fcd34d" : "#92400e", bd: alpha("#f59e0b", isDark ? 0.26 : 0.18) }
+                : { bg: alpha(theme.palette.text.primary, isDark ? 0.06 : 0.04), fg: theme.palette.text.primary, bd: alpha(theme.palette.divider, isDark ? 0.55 : 1) };
+
+    return (
+        <Paper
+            elevation={0}
+            sx={{
+                p: 1.7,
+                borderRadius: 5,
+                ...glass(0.62),
+                border: `1px solid ${toneCfg.bd}`,
+                bgcolor: toneCfg.bg,
+            }}
+        >
+            <Typography sx={{ fontWeight: 900, color: theme.palette.text.secondary, fontSize: "0.80rem" }}>{title}</Typography>
+            <Typography sx={{ fontWeight: 1200, color: toneCfg.fg, fontSize: "1.55rem", mt: 0.25, letterSpacing: "-0.3px" }}>
+                {value}
+            </Typography>
+            {sub ? (
+                <Typography sx={{ fontWeight: 800, color: theme.palette.text.secondary, fontSize: "0.78rem", mt: 0.45 }}>
+                    {sub}
+                </Typography>
+            ) : null}
+        </Paper>
+    );
+}
+
+function TrendChip({ pct }) {
+    const theme = useTheme();
+    const { isDark } = useShellStyles();
     if (pct == null || !Number.isFinite(pct) || pct === 0) return null;
 
     const up = pct > 0;
-    const bg = up ? alpha("#10b981", 0.14) : alpha("#ef4444", 0.14);
-    const bd = up ? alpha("#10b981", 0.22) : alpha("#ef4444", 0.22);
-    const fg = up ? "#065f46" : "#991b1b";
-    const shown = Math.abs(pct).toFixed(1);
+    const bg = up ? alpha("#10b981", isDark ? 0.22 : 0.14) : alpha("#ef4444", isDark ? 0.22 : 0.14);
+    const bd = up ? alpha("#10b981", isDark ? 0.30 : 0.22) : alpha("#ef4444", isDark ? 0.30 : 0.22);
+    const fg = up ? (isDark ? "#86efac" : "#065f46") : (isDark ? "#fca5a5" : "#991b1b");
 
     return (
         <Chip
             size="small"
-            label={`${up ? "▲" : "▼"} %${shown}`}
-            sx={{
-                height: 22,
-                borderRadius: 999,
-                fontWeight: 1100,
-                bgcolor: bg,
-                border: `1px solid ${bd}`,
-                color: fg,
-            }}
+            label={`${up ? "▲" : "▼"} %${Math.abs(pct).toFixed(1)}`}
+            sx={{ height: 22, borderRadius: 999, fontWeight: 1100, bgcolor: bg, border: `1px solid ${bd}`, color: fg, ml: 1 }}
         />
     );
 }
 
-function CellValue({ value, isForecast, trendPct, density = "comfortable" }) {
-    const v = Number(value ?? 0);
-    const hasValue = Number.isFinite(v);
+/* ------------------------ Table (Premium but clean) ------------------------ */
+function TedMatrixTablePretty({ title, subtitle, columns, rows, totals }) {
+    const theme = useTheme();
+    const { isDark, border, glass, softInput } = useShellStyles();
 
-    const cellMinH = density === "compact" ? 38 : 44;
-
-    return (
-        <Stack spacing={0.35} alignItems="center" justifyContent="center" sx={{ minHeight: cellMinH, px: 0.5 }}>
-            <Typography
-                sx={{
-                    fontWeight: isForecast ? 1250 : 1050,
-                    color: "#0f172a",
-                    fontSize: isForecast ? (density === "compact" ? "0.96rem" : "1.02rem") : density === "compact" ? "0.90rem" : "0.96rem",
-                    textAlign: "center",
-                    lineHeight: 1.05,
-                    letterSpacing: "-0.2px",
-                }}
-            >
-                {hasValue ? fmtInt(v) : "-"}
-            </Typography>
-
-            {isForecast ? <TrendPill pct={trendPct} /> : null}
-        </Stack>
-    );
-}
-
-function MiniPill({ label, value, tone = "dark" }) {
-    const cfg =
-        tone === "good"
-            ? { bg: alpha("#10b981", 0.12), fg: "#065f46", bd: alpha("#10b981", 0.18) }
-            : tone === "warn"
-                ? { bg: alpha("#f59e0b", 0.12), fg: "#92400e", bd: alpha("#f59e0b", 0.18) }
-                : tone === "bad"
-                    ? { bg: alpha("#ef4444", 0.12), fg: "#991b1b", bd: alpha("#ef4444", 0.18) }
-                    : { bg: alpha("#0f172a", 0.05), fg: "#0f172a", bd: alpha("#0f172a", 0.10) };
-
-    return (
-        <Chip
-            size="small"
-            label={
-                <span style={{ display: "inline-flex", gap: 6, alignItems: "baseline" }}>
-                    <span style={{ fontWeight: 1100 }}>{label}</span>
-                    <span style={{ fontWeight: 1000 }}>{value}</span>
-                </span>
-            }
-            sx={{
-                height: 22,
-                borderRadius: 999,
-                fontWeight: 1000,
-                bgcolor: cfg.bg,
-                color: cfg.fg,
-                border: `1px solid ${cfg.bd}`,
-            }}
-        />
-    );
-}
-
-/* ------------------------ Table (Modern v2) ------------------------ */
-function TedMatrixTableModern({ title, subtitle, columns, rows, totals }) {
     const [showHistory, setShowHistory] = useState(false);
-
-    // ✅ Modern extras
     const [density, setDensity] = useState("comfortable"); // compact | comfortable
     const [sortMode, setSortMode] = useState("none"); // none | forecast_desc | trend_desc
     const [query, setQuery] = useState("");
 
     const dims = useMemo(() => {
-        if (density === "compact") return { colW: 165, leftW: 380, headTop2: 40 };
-        return { colW: 190, leftW: 420, headTop2: 42 };
+        if (density === "compact") return { colW: 160, leftW: 420, headH: 56, rowH: 46 };
+        return { colW: 190, leftW: 460, headH: 60, rowH: 52 };
     }, [density]);
 
     const colW = dims.colW;
@@ -444,13 +445,7 @@ function TedMatrixTableModern({ title, subtitle, columns, rows, totals }) {
 
     const forecastCols = useMemo(() => columns.filter((c) => String(c.key).startsWith("F_")), [columns]);
     const historyCols = useMemo(() => columns.filter((c) => !String(c.key).startsWith("F_")), [columns]);
-
-    // ✅ İlk görünüm: sadece tahmin | Detay: geçmiş solda, tahmin sağda
-    const visibleCols = useMemo(() => {
-        return showHistory ? [...historyCols, ...forecastCols] : forecastCols;
-    }, [showHistory, historyCols, forecastCols]);
-
-    const firstForecastKey = forecastCols[0]?.key;
+    const visibleCols = useMemo(() => (showHistory ? [...historyCols, ...forecastCols] : forecastCols), [showHistory, historyCols, forecastCols]);
 
     const filteredRows = useMemo(() => {
         const q = normalizeTR(query).replace(/\s+/g, " ").trim();
@@ -468,43 +463,24 @@ function TedMatrixTableModern({ title, subtitle, columns, rows, totals }) {
         return arr;
     }, [filteredRows, sortMode]);
 
-    return (
-        <Paper
-            elevation={0}
-            sx={{
-                p: 2,
-                borderRadius: 6,
-                border: "1px solid rgba(226,232,240,0.9)",
-                bgcolor: "rgba(255,255,255,0.86)",
-                overflow: "hidden",
-                boxShadow: "0 24px 80px rgba(15,23,42,0.08)",
-            }}
-        >
-            {/* Header */}
-            <Stack
-                direction={{ xs: "column", lg: "row" }}
-                spacing={1}
-                alignItems={{ xs: "flex-start", lg: "center" }}
-                justifyContent="space-between"
-                sx={{ mb: 1.4 }}
-            >
-                <Stack spacing={0.45} sx={{ minWidth: 280 }}>
-                    <SectionTitle icon={<TableRowsRoundedIcon fontSize="small" />} title={title} sub={subtitle} />
-                    <Typography sx={{ fontWeight: 850, color: "#94a3b8", fontSize: "0.78rem", mt: 0.1 }}>
-                        Arama • Sıralama • Kompakt/Rahat • Sticky toplam
-                    </Typography>
-                </Stack>
+    const shellBg = isDark ? alpha("#0b1220", 0.72) : alpha("#ffffff", 0.78);
+    const stickyBg = isDark ? alpha("#0b1220", 0.78) : alpha("#f8fafc", 0.86);
+    const rowOddBg = isDark ? alpha("#ffffff", 0.03) : alpha("#0f172a", 0.025);
+    const rowHoverBg = isDark ? alpha("#ffffff", 0.06) : alpha("#0f172a", 0.055);
 
-                <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ xs: "stretch", md: "center" }}>
+    return (
+        <Paper elevation={0} sx={{ p: 1.6, borderRadius: 6, ...glass(0.62) }}>
+            {/* Header */}
+            <Stack direction={{ xs: "column", lg: "row" }} spacing={1.2} alignItems={{ lg: "center" }} justifyContent="space-between" sx={{ mb: 1.2 }}>
+                <SectionTitle icon={<TableRowsRoundedIcon fontSize="small" />} title={title} sub={subtitle} />
+
+                <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
                     <TextField
                         size="small"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Tabloda proje ara…"
-                        sx={{
-                            minWidth: { xs: "100%", md: 240 },
-                            "& .MuiOutlinedInput-root": { borderRadius: 3, bgcolor: "rgba(255,255,255,0.60)" },
-                        }}
+                        placeholder="Projede ara…"
+                        sx={{ width: { xs: "100%", md: 260 }, ...softInput }}
                         InputProps={{
                             startAdornment: (
                                 <InputAdornment position="start">
@@ -519,9 +495,7 @@ function TedMatrixTableModern({ title, subtitle, columns, rows, totals }) {
                         size="small"
                         value={density}
                         onChange={(_, v) => v && setDensity(v)}
-                        sx={{
-                            "& .MuiToggleButton-root": { borderRadius: 3, fontWeight: 1100 },
-                        }}
+                        sx={{ "& .MuiToggleButton-root": { borderRadius: 3, fontWeight: 1100, textTransform: "none" } }}
                     >
                         <ToggleButton value="compact">
                             <Stack direction="row" spacing={0.7} alignItems="center">
@@ -542,9 +516,7 @@ function TedMatrixTableModern({ title, subtitle, columns, rows, totals }) {
                         size="small"
                         value={sortMode}
                         onChange={(_, v) => setSortMode(v ?? "none")}
-                        sx={{
-                            "& .MuiToggleButton-root": { borderRadius: 3, fontWeight: 1100 },
-                        }}
+                        sx={{ "& .MuiToggleButton-root": { borderRadius: 3, fontWeight: 1100, textTransform: "none" } }}
                     >
                         <ToggleButton value="none">
                             <Stack direction="row" spacing={0.7} alignItems="center">
@@ -562,7 +534,12 @@ function TedMatrixTableModern({ title, subtitle, columns, rows, totals }) {
                         sx={{
                             borderRadius: 3,
                             fontWeight: 1100,
-                            ...(showHistory ? { bgcolor: "#0f172a", "&:hover": { bgcolor: "#111827" } } : {}),
+                            textTransform: "none",
+                            ...(showHistory
+                                ? isDark
+                                    ? { bgcolor: "#e2e8f0", color: "#0b1220", "&:hover": { bgcolor: "#f1f5f9" } }
+                                    : { bgcolor: "#0f172a", color: "#fff", "&:hover": { bgcolor: "#111827" } }
+                                : {}),
                         }}
                     >
                         {showHistory ? "Detayı Gizle" : "Detay (Geçmiş)"}
@@ -571,192 +548,42 @@ function TedMatrixTableModern({ title, subtitle, columns, rows, totals }) {
             </Stack>
 
             {/* Table shell */}
-            <Box
-                sx={{
-                    borderRadius: 5,
-                    border: "1px solid rgba(226,232,240,0.95)",
-                    bgcolor: "rgba(255,255,255,0.92)",
-                    overflow: "hidden",
-                }}
-            >
+            <Box sx={{ borderRadius: 5, border, bgcolor: shellBg, overflow: "hidden" }}>
                 <Box sx={{ overflowX: "auto" }}>
                     <Box sx={{ minWidth: leftW + visibleCols.length * colW }}>
-                        {/* GROUP HEADER */}
+                        {/* Header */}
                         <Box
                             sx={{
                                 position: "sticky",
                                 top: 0,
-                                zIndex: 7,
+                                zIndex: 5,
                                 display: "grid",
                                 gridTemplateColumns: `${leftW}px repeat(${visibleCols.length}, ${colW}px)`,
-                                bgcolor: "rgba(248,250,252,0.92)",
-                                backdropFilter: "blur(12px)",
-                                borderBottom: "1px solid rgba(226,232,240,0.95)",
-                                boxShadow: "0 8px 18px rgba(15,23,42,0.06)",
+                                bgcolor: stickyBg,
+                                backdropFilter: "blur(14px)",
+                                borderBottom: border,
+                                boxShadow: isDark ? "0 10px 26px rgba(0,0,0,0.35)" : "0 10px 22px rgba(15,23,42,0.08)",
+                                height: dims.headH,
                             }}
                         >
-                            <Box
-                                sx={{
-                                    px: 1.8,
-                                    py: 1.0,
-                                    position: "sticky",
-                                    left: 0,
-                                    zIndex: 8,
-                                    bgcolor: "rgba(248,250,252,0.92)",
-                                    borderRight: "1px solid rgba(226,232,240,0.9)",
-                                }}
-                            >
-                                <Typography sx={{ fontWeight: 1100, color: "#0f172a", fontSize: "0.78rem", textAlign: "left" }}>
-                                    Proje
-                                </Typography>
-                                <Typography sx={{ fontWeight: 850, color: "#94a3b8", fontSize: "0.72rem", mt: 0.1, textAlign: "left" }}>
-                                    Sticky • Arama/Sıralama • Trend rozetli
+                            <Box sx={{ px: 2, display: "flex", flexDirection: "column", justifyContent: "center", position: "sticky", left: 0, zIndex: 6, bgcolor: stickyBg, borderRight: border }}>
+                                <Typography sx={{ fontWeight: 1200, fontSize: "0.86rem" }}>Proje</Typography>
+                                <Typography sx={{ fontWeight: 850, fontSize: "0.74rem", color: theme.palette.text.secondary, mt: 0.15 }}>
+                                    Ort • Önceki Ay • Tahmin
                                 </Typography>
                             </Box>
 
-                            {!showHistory ? (
-                                <Box
-                                    sx={{
-                                        gridColumn: `span ${visibleCols.length}`,
-                                        px: 1.2,
-                                        py: 1.0,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                    }}
-                                >
-                                    <Chip
-                                        size="small"
-                                        label="TAHMİN"
-                                        sx={{
-                                            height: 24,
-                                            borderRadius: 999,
-                                            fontWeight: 1200,
-                                            bgcolor: alpha("#0f172a", 0.06),
-                                            border: `1px solid ${alpha("#0f172a", 0.12)}`,
-                                            color: "#0f172a",
-                                        }}
-                                    />
+                            {visibleCols.map((c) => (
+                                <Box key={c.key} sx={{ px: 1.2, display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center" }}>
+                                    <Typography sx={{ fontWeight: 1200, fontSize: "0.84rem" }}>{c.label}</Typography>
+                                    <Typography sx={{ fontWeight: 850, fontSize: "0.72rem", color: theme.palette.text.secondary, mt: 0.15 }}>
+                                        {c.sub || c.rangeText || ""}
+                                    </Typography>
                                 </Box>
-                            ) : (
-                                <>
-                                    <Box
-                                        sx={{
-                                            gridColumn: `span ${historyCols.length}`,
-                                            px: 1.2,
-                                            py: 1.0,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            borderRight: "1px solid rgba(226,232,240,0.85)",
-                                            background: `linear-gradient(180deg, ${alpha("#f59e0b", 0.08)}, transparent)`,
-                                        }}
-                                    >
-                                        <Chip
-                                            size="small"
-                                            label="GEÇMİŞ"
-                                            sx={{
-                                                height: 24,
-                                                borderRadius: 999,
-                                                fontWeight: 1200,
-                                                bgcolor: alpha("#f59e0b", 0.12),
-                                                border: `1px solid ${alpha("#f59e0b", 0.18)}`,
-                                                color: "#92400e",
-                                            }}
-                                        />
-                                    </Box>
-
-                                    <Box
-                                        sx={{
-                                            gridColumn: `span ${forecastCols.length}`,
-                                            px: 1.2,
-                                            py: 1.0,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            background: `linear-gradient(180deg, ${alpha("#0f172a", 0.05)}, transparent)`,
-                                        }}
-                                    >
-                                        <Chip
-                                            size="small"
-                                            label="TAHMİN"
-                                            sx={{
-                                                height: 24,
-                                                borderRadius: 999,
-                                                fontWeight: 1200,
-                                                bgcolor: alpha("#0f172a", 0.06),
-                                                border: `1px solid ${alpha("#0f172a", 0.12)}`,
-                                                color: "#0f172a",
-                                            }}
-                                        />
-                                    </Box>
-                                </>
-                            )}
+                            ))}
                         </Box>
 
-                        {/* COLUMN HEADER */}
-                        <Box
-                            sx={{
-                                position: "sticky",
-                                top: dims.headTop2,
-                                zIndex: 6,
-                                display: "grid",
-                                gridTemplateColumns: `${leftW}px repeat(${visibleCols.length}, ${colW}px)`,
-                                bgcolor: "rgba(248,250,252,0.92)",
-                                backdropFilter: "blur(12px)",
-                                borderBottom: "1px solid rgba(226,232,240,0.95)",
-                            }}
-                        >
-                            <Box
-                                sx={{
-                                    px: 1.8,
-                                    py: 1.2,
-                                    position: "sticky",
-                                    left: 0,
-                                    zIndex: 7,
-                                    bgcolor: "rgba(248,250,252,0.92)",
-                                    borderRight: "1px solid rgba(226,232,240,0.9)",
-                                }}
-                            >
-                                <Typography sx={{ fontWeight: 1150, color: "#0f172a", fontSize: "0.82rem", textAlign: "left" }}>
-                                    Proje
-                                </Typography>
-                                <Typography sx={{ fontWeight: 850, color: "#94a3b8", fontSize: "0.74rem", mt: 0.2, textAlign: "left" }}>
-                                    Özet + Tedarik (adet)
-                                </Typography>
-                            </Box>
-
-                            {visibleCols.map((c) => {
-                                const isForecast = String(c.key).startsWith("F_");
-                                const isGroupSplit = showHistory && c.key === firstForecastKey && historyCols.length;
-
-                                return (
-                                    <Box
-                                        key={c.key}
-                                        sx={{
-                                            px: 1.2,
-                                            py: 1.2,
-                                            textAlign: "center",
-                                            borderLeft: isGroupSplit ? "1px solid rgba(226,232,240,0.85)" : "none",
-                                            background: showHistory
-                                                ? isForecast
-                                                    ? `linear-gradient(180deg, ${alpha("#0f172a", 0.05)}, ${alpha("#0f172a", 0.01)})`
-                                                    : alpha("#f59e0b", 0.012)
-                                                : `linear-gradient(180deg, ${alpha("#0f172a", 0.05)}, ${alpha("#0f172a", 0.01)})`,
-                                        }}
-                                    >
-                                        <Typography sx={{ fontWeight: 1200, color: "#0f172a", fontSize: "0.82rem", textAlign: "center" }}>
-                                            {c.label}
-                                        </Typography>
-                                        <Typography sx={{ fontWeight: 850, color: "#94a3b8", fontSize: "0.72rem", mt: 0.2, textAlign: "center" }}>
-                                            {c.sub || c.rangeText || ""}
-                                        </Typography>
-                                    </Box>
-                                );
-                            })}
-                        </Box>
-
-                        {/* BODY */}
+                        {/* Body */}
                         {sortedRows.map((r, idx) => {
                             const avg3 = Number(r.values?.AVG_3M ?? 0);
                             const pmFull = Number(r.values?.PM_FULL ?? 0);
@@ -769,70 +596,63 @@ function TedMatrixTableModern({ title, subtitle, columns, rows, totals }) {
                                     sx={{
                                         display: "grid",
                                         gridTemplateColumns: `${leftW}px repeat(${visibleCols.length}, ${colW}px)`,
-                                        borderBottom: "1px solid rgba(226,232,240,0.65)",
-                                        bgcolor: idx % 2 === 0 ? "rgba(15,23,42,0.012)" : "transparent",
-                                        "&:hover": { bgcolor: "rgba(15,23,42,0.045)" },
+                                        borderBottom: `1px solid ${alpha(theme.palette.divider, isDark ? 0.45 : 0.70)}`,
+                                        bgcolor: idx % 2 === 0 ? rowOddBg : "transparent",
+                                        "&:hover": { bgcolor: rowHoverBg },
                                         transition: "background 160ms ease",
                                     }}
                                 >
+                                    {/* Left sticky */}
                                     <Box
                                         sx={{
-                                            px: 1.8,
-                                            py: density === "compact" ? 0.9 : 1.15,
+                                            px: 2,
+                                            height: dims.rowH,
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            justifyContent: "center",
                                             position: "sticky",
                                             left: 0,
-                                            zIndex: 3,
-                                            bgcolor: idx % 2 === 0 ? "rgba(255,255,255,0.96)" : "rgba(255,255,255,0.94)",
-                                            borderRight: "1px solid rgba(226,232,240,0.7)",
+                                            zIndex: 4,
+                                            bgcolor: idx % 2 === 0 ? alpha(stickyBg, 0.55) : alpha(stickyBg, 0.72),
+                                            borderRight: border,
                                         }}
                                     >
-                                        <Typography sx={{ fontWeight: 1200, color: "#0f172a", fontSize: density === "compact" ? "0.90rem" : "0.92rem" }}>
+                                        <Typography sx={{ fontWeight: 1200, fontSize: density === "compact" ? "0.90rem" : "0.94rem", letterSpacing: "-0.15px" }}>
                                             {r.project}
                                         </Typography>
-
-                                        {/* mini summary pills */}
-                                        <Stack direction="row" spacing={0.8} sx={{ mt: 0.55 }} flexWrap="wrap" useFlexGap>
-                                            <MiniPill label="Ort" value={fmtInt(avg3)} />
-                                            <MiniPill label="Ö.Ay" value={fmtInt(pmFull)} tone="warn" />
-                                            <MiniPill label="Tah" value={fmtInt(fNext)} tone="dark" />
-                                            {fTrend != null ? <TrendPill pct={fTrend} /> : null}
-                                        </Stack>
-
-                                        {r.note ? (
-                                            <Typography sx={{ fontWeight: 850, color: "#64748b", fontSize: "0.76rem", mt: 0.45 }}>
-                                                {r.note}
-                                            </Typography>
-                                        ) : null}
+                                        <Typography sx={{ fontWeight: 850, fontSize: "0.76rem", color: theme.palette.text.secondary, mt: 0.15, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.6 }}>
+                                            <span>Ort: {fmtInt(avg3)}</span>
+                                            <span>• Ö.Ay: {fmtInt(pmFull)}</span>
+                                            <span>• Tah: {fmtInt(fNext)}</span>
+                                            <TrendChip pct={fTrend} />
+                                        </Typography>
                                     </Box>
 
                                     {visibleCols.map((c) => {
                                         const v = r.values?.[c.key];
                                         const isForecast = String(c.key).startsWith("F_");
-                                        const isGroupSplit = showHistory && c.key === firstForecastKey && historyCols.length;
+                                        const trendPct = isForecast ? r.trendMeta?.[c.key] : null;
 
                                         return (
-                                            <Box
-                                                key={c.key}
-                                                sx={{
-                                                    px: 0.8,
-                                                    py: 0.7,
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    borderLeft: isGroupSplit ? "1px solid rgba(226,232,240,0.85)" : "none",
-                                                    background: showHistory
-                                                        ? isForecast
-                                                            ? alpha("#0f172a", 0.012)
-                                                            : "transparent"
-                                                        : alpha("#0f172a", 0.012),
-                                                }}
-                                            >
-                                                <CellValue
-                                                    value={v}
-                                                    density={density}
-                                                    isForecast={isForecast}
-                                                    trendPct={isForecast ? r.trendMeta?.[c.key] : null}
-                                                />
+                                            <Box key={c.key} sx={{ height: dims.rowH, display: "grid", placeItems: "center", px: 1 }}>
+                                                <Tooltip
+                                                    title={
+                                                        isForecast && trendPct != null
+                                                            ? `Trend: %${Math.abs(trendPct).toFixed(1)} ${trendPct > 0 ? "artış" : "azalış"}`
+                                                            : ""
+                                                    }
+                                                    disableHoverListener={!isForecast || trendPct == null}
+                                                >
+                                                    <Typography
+                                                        sx={{
+                                                            fontWeight: isForecast ? 1250 : 1050,
+                                                            fontSize: density === "compact" ? "0.94rem" : "1.00rem",
+                                                            letterSpacing: "-0.15px",
+                                                        }}
+                                                    >
+                                                        {v == null ? "-" : fmtInt(v)}
+                                                    </Typography>
+                                                </Tooltip>
                                             </Box>
                                         );
                                     })}
@@ -840,64 +660,37 @@ function TedMatrixTableModern({ title, subtitle, columns, rows, totals }) {
                             );
                         })}
 
-                        {/* TOTALS (Sticky footer) */}
+                        {/* Totals sticky */}
                         <Box
                             sx={{
                                 position: "sticky",
                                 bottom: 0,
-                                zIndex: 8,
+                                zIndex: 6,
                                 display: "grid",
                                 gridTemplateColumns: `${leftW}px repeat(${visibleCols.length}, ${colW}px)`,
-                                bgcolor: "rgba(248,250,252,0.92)",
-                                backdropFilter: "blur(14px)",
-                                borderTop: "1px solid rgba(226,232,240,0.95)",
-                                boxShadow: "0 -10px 26px rgba(15,23,42,0.10)",
+                                bgcolor: stickyBg,
+                                backdropFilter: "blur(16px)",
+                                borderTop: border,
+                                boxShadow: isDark ? "0 -14px 36px rgba(0,0,0,0.45)" : "0 -10px 26px rgba(15,23,42,0.10)",
                             }}
                         >
-                            <Box
-                                sx={{
-                                    px: 1.8,
-                                    py: 1.15,
-                                    position: "sticky",
-                                    left: 0,
-                                    zIndex: 9,
-                                    bgcolor: "rgba(248,250,252,0.96)",
-                                    borderRight: "1px solid rgba(226,232,240,0.9)",
-                                }}
-                            >
-                                <Typography sx={{ fontWeight: 1250, color: "#0f172a" }}>BÖLGE TOPLAM</Typography>
-                                <Typography sx={{ fontWeight: 850, color: "#64748b", fontSize: "0.78rem", mt: 0.15 }}>
+                            <Box sx={{ px: 2, py: 1.15, position: "sticky", left: 0, zIndex: 7, bgcolor: stickyBg, borderRight: border }}>
+                                <Typography sx={{ fontWeight: 1250 }}>BÖLGE TOPLAM</Typography>
+                                <Typography sx={{ fontWeight: 850, color: theme.palette.text.secondary, fontSize: "0.78rem", mt: 0.15 }}>
                                     Filtrelenmiş tablo toplamı
                                 </Typography>
                             </Box>
-
-                            {visibleCols.map((c) => {
-                                const isForecast = String(c.key).startsWith("F_");
-                                const isGroupSplit = showHistory && c.key === firstForecastKey && historyCols.length;
-
-                                return (
-                                    <Box
-                                        key={c.key}
-                                        sx={{
-                                            px: 0.8,
-                                            py: 0.7,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            borderLeft: isGroupSplit ? "1px solid rgba(226,232,240,0.85)" : "none",
-                                        }}
-                                    >
-                                        <CellValue value={totals?.[c.key]} density={density} isForecast={isForecast} />
-                                    </Box>
-                                );
-                            })}
+                            {visibleCols.map((c) => (
+                                <Box key={c.key} sx={{ px: 1, py: 1.15, display: "grid", placeItems: "center" }}>
+                                    <Typography sx={{ fontWeight: 1250, letterSpacing: "-0.15px" }}>{fmtInt(totals?.[c.key] ?? 0)}</Typography>
+                                </Box>
+                            ))}
                         </Box>
 
-                        {/* empty state */}
                         {!sortedRows.length ? (
                             <Box sx={{ p: 2.2 }}>
-                                <Typography sx={{ fontWeight: 1100, color: "#0f172a" }}>Sonuç yok</Typography>
-                                <Typography sx={{ fontWeight: 850, color: "#64748b", mt: 0.4 }}>
+                                <Typography sx={{ fontWeight: 1100 }}>Sonuç yok</Typography>
+                                <Typography sx={{ fontWeight: 850, color: theme.palette.text.secondary, mt: 0.4 }}>
                                     Arama filtresi nedeniyle eşleşen proje bulunamadı.
                                 </Typography>
                             </Box>
@@ -965,9 +758,11 @@ async function fetchSiparislerRawV({ projects, startISO, endISO, dateField, page
 
 /* ------------------------ Component ------------------------ */
 export default function KarsilastirmaPanel({ open, onClose, onApply }) {
-    // ✅ Bölge boşsa tüm projeler listelensin
+    const theme = useTheme();
+    const { isDark, pageBg, glass, softInput, primaryBtn, outlineBtn, border } = useShellStyles();
+    const isMdUp = useMediaQuery(theme.breakpoints.up("md"));
+
     const [region, setRegion] = useState("");
-    // ✅ Proje boş gelsin kullanıcı seçsin
     const [projects, setProjects] = useState([]);
 
     const dbDateField = "effective_ts";
@@ -979,12 +774,10 @@ export default function KarsilastirmaPanel({ open, onClose, onApply }) {
     const [loading, setLoading] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
 
-    // ✅ Bölge seçilince o bölgenin projeleri, seçilmezse tüm projeler
-    const availableProjects = useMemo(() => {
-        return region ? REGIONS[region] || [] : allProjects;
-    }, [region]);
+    const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-    // ✅ Bölge değişince seçili projeler filtre dışına çıktıysa çıkar
+    const availableProjects = useMemo(() => (region ? REGIONS[region] || [] : allProjects), [region]);
+
     useEffect(() => {
         setProjects((prev) => prev.filter((p) => availableProjects.includes(p)));
     }, [availableProjects]);
@@ -1021,8 +814,6 @@ export default function KarsilastirmaPanel({ open, onClose, onApply }) {
         if (!canApply) return;
 
         const now = new Date();
-
-        // son 6 ay + (bu hafta/şimdiye kadar)
         const minStart = startOfMonth(addMonths(now, -6));
         const maxEnd = toNow ? now : endOfWeekSunday(now);
 
@@ -1050,7 +841,6 @@ export default function KarsilastirmaPanel({ open, onClose, onApply }) {
 
             const engineData = (raw || []).map(mapRawToEngineRow);
 
-            // Bu hafta KPI
             const weekStart = startOfWeekMonday(now);
             const weekEnd = toNow ? now : endOfWeekSunday(now);
             const allowedTotal = new Set(selectedProjects.map((p) => normalizeTR(p).replace(/\s+/g, " ")));
@@ -1082,7 +872,6 @@ export default function KarsilastirmaPanel({ open, onClose, onApply }) {
         const now = new Date();
         const pm = prevMonthWindows(now);
 
-        // ✅ Tahmin ayı: içinde bulunduğumuz ay (Ocak gibi)
         const forecastMonthStart = startOfMonth(now);
         const forecastMonthLabel = monthLabelTR(forecastMonthStart);
 
@@ -1091,17 +880,12 @@ export default function KarsilastirmaPanel({ open, onClose, onApply }) {
             return { start: ms, end: endOfMonth(ms) };
         });
 
-        // Görsel sırayı biz kontrol ediyoruz:
-        // - default: sadece tahmin
-        // - detay açılınca: geçmiş solda, tahmin sağda (table içinde hallediliyor)
         const columns = [
-            // Tahmin
             { key: "F_NEXT", label: "Tahmin", sub: forecastMonthLabel, rangeText: "" },
             { key: "F_W1", label: "Tahmin", sub: "İlk 1 Hafta", rangeText: "" },
             { key: "F_W2", label: "Tahmin", sub: "İlk 2 Hafta", rangeText: "" },
             { key: "F_W3", label: "Tahmin", sub: "İlk 3 Hafta", rangeText: "" },
 
-            // Geçmiş
             { key: "AVG_3M", label: "Son 3 Ay", sub: "Ortalama", rangeText: "" },
             { key: "PM_W1", label: "Önceki Ay", sub: "İlk 1 Hafta", rangeText: fmtRangeTR(pm.w1.start, pm.w1.end) },
             { key: "PM_W2", label: "Önceki Ay", sub: "İlk 2 Hafta", rangeText: fmtRangeTR(pm.w2.start, pm.w2.end) },
@@ -1133,7 +917,6 @@ export default function KarsilastirmaPanel({ open, onClose, onApply }) {
             const series6 = monthsBack.map((mr) => calcTed(allowed, mr.start, mr.end)); // oldest->newest
             const last3 = series6.slice(-3);
 
-            // ✅ baz (raw) yuvarlanmaz; ekranda gösterilecek değer ayrı
             const avg3mRaw = last3.length ? last3.reduce((a, b) => a + b, 0) / last3.length : 0;
             const avg3m = Math.round(avg3mRaw);
 
@@ -1142,7 +925,6 @@ export default function KarsilastirmaPanel({ open, onClose, onApply }) {
 
             return {
                 project: proj,
-                note: `Son 3 ay ort: ${fmtInt(avg3m)} • Tahmin: ${fmtInt(nextTotal)}`,
                 values: {
                     PM_W1: pmW1,
                     PM_W2: pmW2,
@@ -1155,10 +937,6 @@ export default function KarsilastirmaPanel({ open, onClose, onApply }) {
                     F_W2: splits.fW2,
                     F_W3: splits.fW3,
                 },
-                // ✅ Daha doğru oranlar:
-                // - F_NEXT: son 3 ay ort (raw)
-                // - F_W*: önceki ay aynı pencere
-                // - küçük bazlarda rozet göstermez (minBase)
                 trendMeta: {
                     F_NEXT: pctChange(nextTotal, avg3mRaw, { minBase: 5 }),
                     F_W1: pctChange(splits.fW1, pmW1, { minBase: 5 }),
@@ -1191,364 +969,317 @@ export default function KarsilastirmaPanel({ open, onClose, onApply }) {
         return { plan, ted, perf, cov, rangeText: result.week.rangeText };
     }, [result]);
 
-    return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-            fullWidth
-            maxWidth={false}
-            PaperProps={{
-                sx: {
-                    width: { xs: "100vw", md: "96vw" },
-                    height: { xs: "100dvh", md: "92dvh" },
-                    borderRadius: { xs: 0, md: "28px" },
-                    overflow: "hidden",
-                    border: "1px solid rgba(226,232,240,0.9)",
-                    boxShadow: "0 30px 90px rgba(15,23,42,0.20)",
-                    bgcolor: "transparent",
-                },
-            }}
-        >
-            {/* Premium background */}
-            <Box
-                sx={{
-                    position: "absolute",
-                    inset: 0,
-                    zIndex: 0,
-                    background:
-                        "radial-gradient(1200px 700px at 15% 10%, rgba(59,130,246,0.18), transparent 55%)," +
-                        "radial-gradient(900px 600px at 85% 20%, rgba(16,185,129,0.14), transparent 55%)," +
-                        "radial-gradient(1000px 800px at 60% 95%, rgba(244,63,94,0.10), transparent 60%)," +
-                        "linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.92))",
-                    filter: "saturate(1.05)",
-                }}
-            />
+    const FiltersPanel = (
+        <Box sx={{ p: 2 }}>
+            <Paper elevation={0} sx={{ p: 1.6, borderRadius: 6, ...glass(0.62) }}>
+                <Stack spacing={1.2}>
+                    <SectionTitle icon={<TuneRoundedIcon fontSize="small" />} title="Filtreler" sub="Bölge • Proje seçimi" />
 
-            {/* Header */}
-            <DialogTitle
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Bölge</InputLabel>
+                        <Select
+                            label="Bölge"
+                            value={region}
+                            onChange={(e) => setRegion(e.target.value)}
+                            sx={{ borderRadius: 3, bgcolor: isDark ? alpha("#0b1220", 0.55) : alpha("#ffffff", 0.75), backdropFilter: "blur(10px)" }}
+                        >
+                            <MenuItem value="">
+                                <em>Tümü (Bölge seçilmedi)</em>
+                            </MenuItem>
+                            {Object.keys(REGIONS).map((r) => (
+                                <MenuItem key={r} value={r}>
+                                    {r}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <Divider sx={{ borderColor: alpha(theme.palette.divider, isDark ? 0.55 : 1) }} />
+
+                    <Autocomplete
+                        multiple
+                        options={availableProjects}
+                        value={projects}
+                        onChange={(_, newValue) => setProjects(newValue)}
+                        disableCloseOnSelect
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                size="small"
+                                label="Projeler"
+                                placeholder="Yazıp ara…"
+                                sx={softInput}
+                            />
+                        )}
+                        renderTags={(value, getTagProps) =>
+                            value.slice(0, 3).map((option, index) => (
+                                <Chip
+                                    {...getTagProps({ index })}
+                                    key={option}
+                                    label={option}
+                                    size="small"
+                                    sx={{
+                                        borderRadius: 2,
+                                        fontWeight: 900,
+                                        bgcolor: alpha(theme.palette.text.primary, isDark ? 0.10 : 0.06),
+                                        border: `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}`,
+                                    }}
+                                />
+                            ))
+                        }
+                    />
+
+                    <Stack direction="row" spacing={1}>
+                        <Button
+                            size="small"
+                            variant={allSelected ? "contained" : "outlined"}
+                            onClick={() => setProjects(availableProjects)}
+                            disabled={!availableProjects?.length}
+                            sx={{ borderRadius: 3, fontWeight: 1000, textTransform: "none" }}
+                        >
+                            Tümünü seç
+                        </Button>
+                        <Button size="small" variant="text" onClick={() => setProjects([])} sx={{ borderRadius: 3, fontWeight: 1000, textTransform: "none" }}>
+                            Temizle
+                        </Button>
+                    </Stack>
+
+                    {!canApply && (
+                        <Typography sx={{ fontSize: "0.85rem", color: "#ef4444", fontWeight: 1000 }}>
+                            Getir için en az 1 proje seçmelisin.
+                        </Typography>
+                    )}
+
+                    <Divider sx={{ borderColor: alpha(theme.palette.divider, isDark ? 0.55 : 1) }} />
+
+                    <Stack direction="row" spacing={1}>
+                        <Button variant="outlined" onClick={resetFilters} startIcon={<RestartAltRoundedIcon />} sx={outlineBtn}>
+                            Sıfırla
+                        </Button>
+                        <Button variant="contained" onClick={handleApply} disabled={!canApply || loading} startIcon={<BoltRoundedIcon />} sx={primaryBtn}>
+                            Getir
+                        </Button>
+                    </Stack>
+
+                    {showAdvanced ? (
+                        <Box sx={{ mt: 0.6, p: 1.2, borderRadius: 4, border, bgcolor: alpha(theme.palette.text.primary, isDark ? 0.06 : 0.03) }}>
+                            <Typography sx={{ fontWeight: 1000, fontSize: "0.86rem" }}>Gelişmiş (placeholder)</Typography>
+                            <Typography sx={{ fontWeight: 800, color: theme.palette.text.secondary, fontSize: "0.78rem", mt: 0.3 }}>
+                                Buraya tarih aralığı / hardCap / toNow gibi seçenekleri ekleyebiliriz.
+                            </Typography>
+                        </Box>
+                    ) : null}
+                </Stack>
+            </Paper>
+        </Box>
+    );
+
+    if (!open) return null;
+
+    return (
+        <Box sx={{ position: "fixed", inset: 0, zIndex: 1300, display: "flex" }}>
+            {/* Background */}
+            <Box sx={{ position: "absolute", inset: 0, background: pageBg, zIndex: 0 }} />
+
+            {/* Top bar */}
+            <AppBar
+                position="fixed"
+                color="transparent"
+                elevation={0}
                 sx={{
-                    position: "sticky",
-                    top: 0,
-                    zIndex: 6,
-                    py: 1.6,
-                    px: 2.0,
-                    bgcolor: "rgba(255,255,255,0.72)",
+                    zIndex: 10,
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}`,
+                    bgcolor: isDark ? alpha("#0b1220", 0.55) : alpha("#ffffff", 0.60),
                     backdropFilter: "blur(18px)",
-                    borderBottom: "1px solid rgba(226,232,240,0.9)",
                 }}
             >
-                <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-                    <Stack spacing={0.45}>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography sx={{ fontWeight: 1200, color: "#0f172a", letterSpacing: "-0.55px" }}>
-                                Tedarik Öngörü Paneli
+                <Toolbar sx={{ gap: 1 }}>
+                    {!isMdUp ? (
+                        <IconButton onClick={() => setMobileDrawerOpen(true)} sx={{ bgcolor: alpha(theme.palette.text.primary, isDark ? 0.10 : 0.05), border: `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}` }}>
+                            <MenuIcon />
+                        </IconButton>
+                    ) : null}
+
+                    <Stack sx={{ flex: 1 }}>
+                        <Typography sx={{ fontWeight: 1250, letterSpacing: "-0.45px", lineHeight: 1.05 }}>
+                            Tedarik Öngörü Paneli
+                        </Typography>
+                        <Typography sx={{ fontWeight: 850, color: theme.palette.text.secondary, fontSize: "0.78rem", mt: 0.15 }}>
+                            Sade ama premium • Filtre → Getir → Özet + Tablo
+                        </Typography>
+                    </Stack>
+
+                    <Chip
+                        size="small"
+                        label={selectionBadge}
+                        sx={{
+                            height: 26,
+                            borderRadius: 999,
+                            fontWeight: 1100,
+                            bgcolor: alpha(theme.palette.text.primary, isDark ? 0.10 : 0.06),
+                            border: `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}`,
+                            backdropFilter: "blur(10px)",
+                        }}
+                    />
+
+                    {result?.fetchedCount != null ? (
+                        <Chip
+                            size="small"
+                            label={`Kayıt: ${fmtInt(result.fetchedCount)}`}
+                            sx={{
+                                height: 26,
+                                borderRadius: 999,
+                                fontWeight: 1100,
+                                bgcolor: alpha("#10b981", isDark ? 0.18 : 0.10),
+                                border: `1px solid ${alpha("#10b981", isDark ? 0.26 : 0.16)}`,
+                                color: isDark ? "#86efac" : "#065f46",
+                            }}
+                        />
+                    ) : null}
+
+                    <Tooltip title="Gelişmiş">
+                        <Button
+                            variant="outlined"
+                            onClick={() => setShowAdvanced((v) => !v)}
+                            startIcon={<TuneRoundedIcon />}
+                            sx={outlineBtn}
+                        >
+                            Ayarlar
+                        </Button>
+                    </Tooltip>
+
+                    <Button variant="outlined" onClick={resetFilters} startIcon={<RestartAltRoundedIcon />} sx={outlineBtn}>
+                        Sıfırla
+                    </Button>
+
+                    <Button variant="contained" onClick={handleApply} disabled={!canApply || loading} startIcon={<BoltRoundedIcon />} sx={primaryBtn}>
+                        Getir
+                    </Button>
+
+                    <IconButton
+                        onClick={onClose}
+                        sx={{
+                            bgcolor: alpha(theme.palette.text.primary, isDark ? 0.10 : 0.05),
+                            border: `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}`,
+                        }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+                </Toolbar>
+
+                {(loading || errorText) && (
+                    <Box sx={{ px: 2, pb: 1 }}>
+                        {loading ? (
+                            <Stack direction="row" spacing={1} alignItems="center">
+                                <CircularProgress size={16} />
+                                <Typography sx={{ fontWeight: 850, color: theme.palette.text.secondary, fontSize: "0.85rem" }}>
+                                    Supabase’den çekiliyor ve analiz ediliyor…
+                                </Typography>
+                            </Stack>
+                        ) : null}
+
+                        {errorText ? (
+                            <Typography sx={{ mt: 0.6, fontSize: "0.85rem", color: "#ef4444", fontWeight: 1000 }}>
+                                {errorText}
                             </Typography>
-                            <Chip
-                                size="small"
-                                label={selectionBadge}
-                                sx={{
-                                    height: 26,
-                                    borderRadius: 999,
-                                    fontWeight: 1100,
-                                    bgcolor: alpha("#0f172a", 0.06),
-                                    border: `1px solid ${alpha("#0f172a", 0.12)}`,
-                                    color: "#0f172a",
-                                    backdropFilter: "blur(10px)",
-                                }}
+                        ) : null}
+                    </Box>
+                )}
+            </AppBar>
+
+            {/* Left sidebar (desktop) */}
+            {isMdUp ? (
+                <Box
+                    sx={{
+                        width: 420,
+                        flex: "0 0 420px",
+                        pt: "86px",
+                        position: "relative",
+                        zIndex: 2,
+                        overflow: "auto",
+                    }}
+                >
+                    {FiltersPanel}
+                </Box>
+            ) : (
+                <Drawer open={mobileDrawerOpen} onClose={() => setMobileDrawerOpen(false)}>
+                    <Box sx={{ width: 420, maxWidth: "92vw" }}>
+                        <Box sx={{ p: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}` }}>
+                            <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                <Typography sx={{ fontWeight: 1200 }}>Filtreler</Typography>
+                                <IconButton onClick={() => setMobileDrawerOpen(false)}>
+                                    <CloseIcon />
+                                </IconButton>
+                            </Stack>
+                        </Box>
+                        {FiltersPanel}
+                    </Box>
+                </Drawer>
+            )}
+
+            {/* Main */}
+            <Box sx={{ flex: 1, pt: "86px", position: "relative", zIndex: 1, overflow: "auto" }}>
+                <Box sx={{ p: { xs: 1.5, md: 2.2 }, maxWidth: 1700, mx: "auto" }}>
+                    {/* Empty state */}
+                    {!result && !loading ? (
+                        <Paper elevation={0} sx={{ p: 2.2, borderRadius: 6, ...glass(0.62) }}>
+                            <SectionTitle
+                                icon={<CalendarMonthRoundedIcon fontSize="small" />}
+                                title="Başlamak için"
+                                sub='Soldan proje(leri) seç ve “Getir” ile öngörü tablosunu oluştur.'
                             />
-                            {result?.fetchedCount != null ? (
+                            <Box sx={{ mt: 1.4, p: 1.6, borderRadius: 5, border, bgcolor: alpha(theme.palette.text.primary, isDark ? 0.06 : 0.03) }}>
+                                <Typography sx={{ fontWeight: 1100 }}>İpuçları</Typography>
+                                <Typography sx={{ fontWeight: 850, color: theme.palette.text.secondary, mt: 0.55, lineHeight: 1.6 }}>
+                                    • İlk ekranda sadece <b>Tahmin</b> kolonları görünür <br />
+                                    • “Detay (Geçmiş)” ile geçmiş kolonlar açılır <br />
+                                    • Trend yüzdeleri proje satırında rozet olarak görünür
+                                </Typography>
+                            </Box>
+                        </Paper>
+                    ) : null}
+
+                    {/* Week KPI */}
+                    {result && weekPills ? (
+                        <Paper elevation={0} sx={{ p: 1.8, borderRadius: 6, ...glass(0.62), mb: 2 }}>
+                            <Stack direction={{ xs: "column", lg: "row" }} spacing={1.4} alignItems={{ lg: "center" }} justifyContent="space-between">
+                                <SectionTitle icon={<CalendarMonthRoundedIcon fontSize="small" />} title="Bu hafta özet" sub={weekPills.rangeText} />
                                 <Chip
                                     size="small"
-                                    label={`Kayıt: ${fmtInt(result.fetchedCount)}`}
+                                    label="KPI • canlı"
                                     sx={{
                                         height: 26,
                                         borderRadius: 999,
-                                        fontWeight: 1000,
-                                        bgcolor: alpha("#10b981", 0.10),
-                                        border: `1px solid ${alpha("#10b981", 0.16)}`,
-                                        color: "#065f46",
+                                        fontWeight: 1100,
+                                        bgcolor: alpha(theme.palette.text.primary, isDark ? 0.10 : 0.06),
+                                        border: `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}`,
                                     }}
                                 />
-                            ) : null}
-                        </Stack>
-
-                        <Typography sx={{ fontWeight: 850, color: "#64748b", fontSize: "0.85rem" }}>
-                            İlk görünüm: Tahmin • Detay: Geçmiş solda, Tahmin sağda • Arama/Sıralama/Kompakt + Sticky toplam
-                        </Typography>
-                    </Stack>
-
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        <Tooltip title="Gelişmiş">
-                            <Button
-                                variant="outlined"
-                                onClick={() => setShowAdvanced((v) => !v)}
-                                startIcon={<TuneRoundedIcon />}
-                                sx={{
-                                    borderRadius: 3,
-                                    fontWeight: 1000,
-                                    bgcolor: "rgba(255,255,255,0.55)",
-                                    backdropFilter: "blur(12px)",
-                                }}
-                            >
-                                Ayarlar
-                            </Button>
-                        </Tooltip>
-
-                        <Tooltip title="Sıfırla">
-                            <Button
-                                variant="outlined"
-                                onClick={resetFilters}
-                                startIcon={<RestartAltRoundedIcon />}
-                                sx={{
-                                    borderRadius: 3,
-                                    fontWeight: 1000,
-                                    bgcolor: "rgba(255,255,255,0.55)",
-                                    backdropFilter: "blur(12px)",
-                                }}
-                            >
-                                Sıfırla
-                            </Button>
-                        </Tooltip>
-
-                        <Button
-                            variant="contained"
-                            onClick={handleApply}
-                            disabled={!canApply || loading}
-                            startIcon={<BoltRoundedIcon />}
-                            sx={{
-                                borderRadius: 3,
-                                fontWeight: 1200,
-                                bgcolor: "#0f172a",
-                                "&:hover": { bgcolor: "#111827" },
-                            }}
-                        >
-                            Getir
-                        </Button>
-
-                        <IconButton onClick={onClose} sx={{ bgcolor: alpha("#0f172a", 0.04), border: `1px solid ${alpha("#0f172a", 0.10)}` }}>
-                            <CloseIcon />
-                        </IconButton>
-                    </Stack>
-                </Stack>
-
-                {loading && (
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-                        <CircularProgress size={16} />
-                        <Typography sx={{ fontWeight: 850, color: "#64748b", fontSize: "0.85rem" }}>
-                            Supabase’den çekiliyor ve analiz ediliyor…
-                        </Typography>
-                    </Stack>
-                )}
-
-                {errorText && (
-                    <Typography sx={{ mt: 1, fontSize: "0.85rem", color: "#ef4444", fontWeight: 1000 }}>
-                        {errorText}
-                    </Typography>
-                )}
-            </DialogTitle>
-
-            <DialogContent sx={{ position: "relative", zIndex: 1, p: 2.0, height: "100%", overflow: "auto" }}>
-                <Stack spacing={1.6}>
-                    <Box
-                        sx={{
-                            display: "grid",
-                            gridTemplateColumns: { xs: "1fr", lg: "440px 1fr" },
-                            gap: 1.8,
-                            alignItems: "start",
-                        }}
-                    >
-                        {/* Left: Filters */}
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 1.5,
-                                borderRadius: 3,
-                                border: "1px solid rgba(226,232,240,1)",
-                                bgcolor: "#fff",
-                                boxShadow: "none",
-                            }}
-                        >
-                            <Stack spacing={1.1}>
-                                <Box>
-                                    <Typography sx={{ fontWeight: 1100, color: "#0f172a" }}>Filtreler</Typography>
-                                    <Typography sx={{ fontWeight: 700, color: "#64748b", fontSize: "0.8rem" }}>
-                                        Bölge • Proje
-                                    </Typography>
-                                </Box>
-
-                                <FormControl fullWidth size="small">
-                                    <InputLabel>Bölge</InputLabel>
-                                    <Select
-                                        label="Bölge"
-                                        value={region}
-                                        onChange={(e) => setRegion(e.target.value)}
-                                        sx={{ borderRadius: 2, bgcolor: "#fff" }}
-                                    >
-                                        <MenuItem value="">
-                                            <em>Tümü (Bölge seçilmedi)</em>
-                                        </MenuItem>
-                                        {Object.keys(REGIONS).map((r) => (
-                                            <MenuItem key={r} value={r}>
-                                                {r}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-
-                                <Divider sx={{ my: 0.3 }} />
-
-                                <Autocomplete
-                                    multiple
-                                    options={availableProjects}
-                                    value={projects}
-                                    onChange={(_, newValue) => setProjects(newValue)}
-                                    disableCloseOnSelect
-                                    renderInput={(params) => (
-                                        <TextField {...params} size="small" label="Projeler" placeholder="Yazıp ara…" />
-                                    )}
-                                    renderTags={(value, getTagProps) =>
-                                        value.slice(0, 3).map((option, index) => (
-                                            <Chip
-                                                {...getTagProps({ index })}
-                                                key={option}
-                                                label={option}
-                                                size="small"
-                                                sx={{ borderRadius: 2, fontWeight: 800 }}
-                                            />
-                                        ))
-                                    }
-                                    sx={{
-                                        "& .MuiOutlinedInput-root": { borderRadius: 2, bgcolor: "#fff" },
-                                    }}
-                                />
-
-                                <Stack direction="row" spacing={1} sx={{ mt: 0.2 }}>
-                                    <Button
-                                        size="small"
-                                        variant={allSelected ? "contained" : "outlined"}
-                                        onClick={() => setProjects(availableProjects)}
-                                        disabled={!availableProjects?.length}
-                                        sx={{
-                                            borderRadius: 2,
-                                            fontWeight: 900,
-                                            ...(allSelected ? { bgcolor: "#0f172a", "&:hover": { bgcolor: "#111827" } } : {}),
-                                        }}
-                                    >
-                                        Tümünü seç
-                                    </Button>
-
-                                    <Button
-                                        size="small"
-                                        variant="text"
-                                        onClick={() => setProjects([])}
-                                        sx={{ borderRadius: 2, fontWeight: 900, color: "#0f172a" }}
-                                    >
-                                        Temizle
-                                    </Button>
-                                </Stack>
-
-                                {!canApply && (
-                                    <Typography sx={{ fontSize: "0.85rem", color: "#ef4444", fontWeight: 1000 }}>
-                                        Getir için en az 1 proje seçmelisin.
-                                    </Typography>
-                                )}
                             </Stack>
+
+                            <Box sx={{ mt: 1.4, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" }, gap: 1.2 }}>
+                                <KpiCard title="Tedarik" value={fmtInt(weekPills.ted)} tone="good" />
+                                <KpiCard title="Talep" value={fmtInt(weekPills.plan)} />
+                                <KpiCard title="Ted/Talep" value={weekPills.cov == null ? "-" : fmtPct(weekPills.cov)} sub="Karşılama" tone={(weekPills.cov ?? 0) >= 90 ? "good" : "warn"} />
+                                <KpiCard title="Perf" value={fmtPct(weekPills.perf)} sub="Performans" tone={(weekPills.perf ?? 0) >= 90 ? "good" : "warn"} />
+                            </Box>
                         </Paper>
+                    ) : null}
 
-                        {/* Right: Results */}
-                        <Stack spacing={1.4}>
-                            {!result && !loading && (
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        p: 2.4,
-                                        borderRadius: 6,
-                                        border: `1px solid ${alpha("#0f172a", 0.10)}`,
-                                        bgcolor: "rgba(255,255,255,0.70)",
-                                        backdropFilter: "blur(18px)",
-                                        boxShadow: "0 20px 70px rgba(15,23,42,0.08)",
-                                    }}
-                                >
-                                    <SectionTitle
-                                        icon={<PublicRoundedIcon fontSize="small" />}
-                                        title="Başlamak için"
-                                        sub='Proje(leri) seç ve “Getir” ile öngörü tablosunu oluştur.'
-                                    />
-                                    <Box
-                                        sx={{
-                                            mt: 1.4,
-                                            p: 1.6,
-                                            borderRadius: 5,
-                                            bgcolor: alpha("#0f172a", 0.03),
-                                            border: `1px solid ${alpha("#0f172a", 0.08)}`,
-                                        }}
-                                    >
-                                        <Typography sx={{ fontWeight: 900, color: "#0f172a" }}>Neler göreceksin?</Typography>
-                                        <Typography sx={{ fontWeight: 850, color: "#64748b", mt: 0.55, lineHeight: 1.55 }}>
-                                            • İlk ekranda <b>Tahmin</b> kolonları
-                                            <br />
-                                            • <b>Detay</b> ile <b>Geçmiş</b> kolonları (solda)
-                                            <br />
-                                            • Tahminlerde ▲/▼ trend yüzdeleri
-                                            <br />
-                                            • Yeni: Arama • Sıralama • Kompakt/Rahat • Sticky toplam
-                                        </Typography>
-                                    </Box>
-                                </Paper>
-                            )}
+                    {/* Table */}
+                    {result && tedMatrix ? (
+                        <TedMatrixTablePretty
+                            title={`Tedarik Öngörü Tablosu • ${region || "Tümü"}`}
+                            subtitle="Premium ama temiz • Arama/Sıralama/Density • Sticky toplam"
+                            columns={tedMatrix.columns}
+                            rows={tedMatrix.rows}
+                            totals={tedMatrix.totals}
+                        />
+                    ) : null}
 
-                            {result && weekPills && (
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        p: 1.8,
-                                        borderRadius: 6,
-                                        border: `1px solid ${alpha("#0f172a", 0.10)}`,
-                                        bgcolor: "rgba(255,255,255,0.70)",
-                                        backdropFilter: "blur(18px)",
-                                        boxShadow: "0 20px 70px rgba(15,23,42,0.08)",
-                                    }}
-                                >
-                                    <Stack
-                                        direction={{ xs: "column", md: "row" }}
-                                        spacing={1.2}
-                                        alignItems={{ xs: "flex-start", md: "center" }}
-                                        justifyContent="space-between"
-                                    >
-                                        <SectionTitle icon={<CalendarMonthRoundedIcon fontSize="small" />} title="Bu hafta özet" sub={weekPills.rangeText} />
-                                        <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
-                                            <MetricPill label="Tedarik" value={fmtInt(weekPills.ted)} tone="good" />
-                                            <MetricPill label="Talep" value={fmtInt(weekPills.plan)} />
-                                            <MetricPill
-                                                label="Ted/Talep"
-                                                value={weekPills.cov == null ? "-" : fmtPct(weekPills.cov)}
-                                                tone={(weekPills.cov ?? 0) >= 90 ? "good" : "warn"}
-                                            />
-                                            <MetricPill
-                                                label="Perf"
-                                                value={fmtPct(weekPills.perf)}
-                                                tone={(weekPills.perf ?? 0) >= 90 ? "good" : "warn"}
-                                            />
-                                        </Stack>
-                                    </Stack>
-                                </Paper>
-                            )}
-
-                            {result && tedMatrix && (
-                                <TedMatrixTableModern
-                                    title={`Tedarik Öngörü Tablosu • ${region || "Tümü"}`}
-                                    subtitle={`Mevcut ay tahmini • Detay: Geçmiş solda, Tahmin sağda • Modern v2`}
-                                    columns={tedMatrix.columns}
-                                    rows={tedMatrix.rows}
-                                    totals={tedMatrix.totals}
-                                />
-                            )}
-                        </Stack>
-                    </Box>
-
-                    <Box sx={{ height: 14 }} />
-                </Stack>
-            </DialogContent>
-        </Dialog>
+                    <Box sx={{ height: 18 }} />
+                </Box>
+            </Box>
+        </Box>
     );
 }

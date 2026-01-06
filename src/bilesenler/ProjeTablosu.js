@@ -21,6 +21,7 @@ import {
     Tooltip,
     IconButton,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import {
     MdMonitor,
     MdSearch,
@@ -142,11 +143,14 @@ const getTimingInfo = (seferAcilisZamani, yuklemeTarihi) => {
 };
 
 const StatusPill = ({ statusIdRaw }) => {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === "dark";
     const id = toNum(statusIdRaw);
     const s =
         id != null && STATUS_MAP[id]
             ? STATUS_MAP[id]
             : { label: "Belirsiz", color: "#94a3b8" };
+
     return (
         <Chip
             size="small"
@@ -155,24 +159,36 @@ const StatusPill = ({ statusIdRaw }) => {
                 height: 24,
                 fontWeight: 950,
                 borderRadius: "999px",
-                bgcolor: s.color,
+                bgcolor: isDark ? alpha(s.color, 0.28) : s.color,
                 color: "#fff",
                 px: 1,
+                border: isDark ? `1px solid ${alpha(s.color, 0.45)}` : "none",
             }}
         />
     );
 };
 
-/* ------------------------ modern UI ------------------------ */
-const Root = styled(Box)({
-    width: "100%",
-    minHeight: "100vh",
-    padding: "clamp(12px, 2vw, 26px)",
-    background:
-        "radial-gradient(1200px 600px at 15% 0%, rgba(59,130,246,0.14), transparent 55%)," +
-        "radial-gradient(900px 520px at 85% 5%, rgba(16,185,129,0.10), transparent 60%)," +
-        "radial-gradient(1000px 650px at 50% 100%, rgba(245,158,11,0.10), transparent 60%)," +
-        "linear-gradient(180deg,#f8fafc, #f6f7fb 60%, #f8fafc)",
+/* ------------------------ modern UI (theme-aware) ------------------------ */
+const Root = styled(Box)(({ theme }) => {
+    const isDark = theme.palette.mode === "dark";
+    return {
+        width: "100%",
+        minHeight: "100vh",
+        padding: "clamp(12px, 2vw, 26px)",
+        background: isDark
+            ? [
+                `radial-gradient(1200px 600px at 15% 0%, ${alpha("#3b82f6", 0.22)}, transparent 55%)`,
+                `radial-gradient(900px 520px at 85% 5%, ${alpha("#10b981", 0.16)}, transparent 60%)`,
+                `radial-gradient(1000px 650px at 50% 100%, ${alpha("#f59e0b", 0.14)}, transparent 60%)`,
+                "linear-gradient(180deg,#020617, #071225 60%, #020617)",
+            ].join(",")
+            : [
+                `radial-gradient(1200px 600px at 15% 0%, rgba(59,130,246,0.14), transparent 55%)`,
+                `radial-gradient(900px 520px at 85% 5%, rgba(16,185,129,0.10), transparent 60%)`,
+                `radial-gradient(1000px 650px at 50% 100%, rgba(245,158,11,0.10), transparent 60%)`,
+                "linear-gradient(180deg,#f8fafc, #f6f7fb 60%, #f8fafc)",
+            ].join(","),
+    };
 });
 
 const Wide = styled(Box)({
@@ -182,16 +198,19 @@ const Wide = styled(Box)({
     marginRight: "auto",
 });
 
-const TopBar = styled(Paper)({
-    position: "sticky",
-    top: 14,
-    zIndex: 10,
-    borderRadius: 26,
-    padding: 18,
-    border: "1px solid rgba(226,232,240,0.8)",
-    background: "rgba(255,255,255,0.78)",
-    backdropFilter: "blur(16px)",
-    boxShadow: "0 24px 80px rgba(2,6,23,0.12)",
+const TopBar = styled(Paper)(({ theme }) => {
+    const isDark = theme.palette.mode === "dark";
+    return {
+        position: "sticky",
+        top: 14,
+        zIndex: 10,
+        borderRadius: 26,
+        padding: 18,
+        border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "1px solid rgba(226,232,240,0.8)",
+        background: isDark ? alpha("#0b1220", 0.78) : "rgba(255,255,255,0.78)",
+        backdropFilter: "blur(16px)",
+        boxShadow: isDark ? "0 28px 90px rgba(0,0,0,0.55)" : "0 24px 80px rgba(2,6,23,0.12)",
+    };
 });
 
 const Grid = styled(Box)({
@@ -206,48 +225,51 @@ const Grid2 = styled(Box)({
     gap: 14,
 });
 
-const KPI = styled(motion.div)(({ accent = "#3b82f6" }) => ({
-    borderRadius: 22,
-    padding: 16,
-    border: "1px solid rgba(226,232,240,0.9)",
-    background: "rgba(255,255,255,0.88)",
-    backdropFilter: "blur(10px)",
-    boxShadow: "0 18px 55px rgba(2,6,23,0.06)",
-    position: "relative",
-    overflow: "hidden",
-    cursor: "default",
-    "&:before": {
-        content: '""',
-        position: "absolute",
-        inset: 0,
-        background: `radial-gradient(900px 250px at 18% 0%, ${alpha(
-            accent,
-            0.18
-        )}, transparent 55%)`,
-        pointerEvents: "none",
-    },
-}));
-
-const RegionTabs = styled(Tabs)({
-    background: "rgba(15,23,42,0.04)",
-    padding: 6,
-    borderRadius: 18,
-    border: "1px solid rgba(226,232,240,0.9)",
-    "& .MuiTabs-indicator": {
-        height: "calc(100% - 12px)",
-        borderRadius: 14,
-        backgroundColor: "rgba(255,255,255,0.92)",
-        top: 6,
-    },
+const KPI = styled(motion.div)(({ theme, accent = "#3b82f6" }) => {
+    const isDark = theme.palette.mode === "dark";
+    return {
+        borderRadius: 22,
+        padding: 16,
+        border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "1px solid rgba(226,232,240,0.9)",
+        background: isDark ? alpha("#0b1220", 0.86) : "rgba(255,255,255,0.88)",
+        backdropFilter: "blur(10px)",
+        boxShadow: isDark ? "0 18px 55px rgba(0,0,0,0.45)" : "0 18px 55px rgba(2,6,23,0.06)",
+        position: "relative",
+        overflow: "hidden",
+        cursor: "default",
+        "&:before": {
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            background: `radial-gradient(900px 250px at 18% 0%, ${alpha(accent, isDark ? 0.24 : 0.18)}, transparent 55%)`,
+            pointerEvents: "none",
+        },
+    };
 });
 
-const RegionTab = styled(Tab)({
+const RegionTabs = styled(Tabs)(({ theme }) => {
+    const isDark = theme.palette.mode === "dark";
+    return {
+        background: isDark ? alpha("#ffffff", 0.06) : "rgba(15,23,42,0.04)",
+        padding: 6,
+        borderRadius: 18,
+        border: isDark ? `1px solid ${alpha("#ffffff", 0.12)}` : "1px solid rgba(226,232,240,0.9)",
+        "& .MuiTabs-indicator": {
+            height: "calc(100% - 12px)",
+            borderRadius: 14,
+            backgroundColor: isDark ? alpha("#ffffff", 0.10) : "rgba(255,255,255,0.92)",
+            top: 6,
+        },
+    };
+});
+
+const RegionTab = styled(Tab)(({ theme }) => ({
     textTransform: "none",
     fontWeight: 950,
     zIndex: 2,
-    color: "#64748b",
-    "&.Mui-selected": { color: "#0f172a" },
-});
+    color: theme.palette.text.secondary,
+    "&.Mui-selected": { color: theme.palette.text.primary },
+}));
 
 const CardList = styled(Box)({
     marginTop: 16,
@@ -255,13 +277,16 @@ const CardList = styled(Box)({
     gap: 12,
 });
 
-const ProjectCard = styled(motion.div)({
-    borderRadius: 24,
-    border: "1px solid rgba(226,232,240,0.95)",
-    background: "rgba(255,255,255,0.90)",
-    backdropFilter: "blur(12px)",
-    boxShadow: "0 16px 55px rgba(2,6,23,0.07)",
-    overflow: "hidden",
+const ProjectCard = styled(motion.div)(({ theme }) => {
+    const isDark = theme.palette.mode === "dark";
+    return {
+        borderRadius: 24,
+        border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "1px solid rgba(226,232,240,0.95)",
+        background: isDark ? alpha("#0b1220", 0.86) : "rgba(255,255,255,0.90)",
+        backdropFilter: "blur(12px)",
+        boxShadow: isDark ? "0 18px 60px rgba(0,0,0,0.55)" : "0 16px 55px rgba(2,6,23,0.07)",
+        overflow: "hidden",
+    };
 });
 
 const CardHeader = styled(Box)({
@@ -279,90 +304,116 @@ const Accent = styled(Box)(({ color = "#3b82f6" }) => ({
     alignSelf: "stretch",
 }));
 
-const Pill = styled(Chip)(({ pillcolor }) => ({
-    height: 26,
-    borderRadius: 999,
-    fontWeight: 950,
-    background: alpha(pillcolor || "#3b82f6", 0.12),
-    color: pillcolor || "#3b82f6",
-    border: `1px solid ${alpha(pillcolor || "#3b82f6", 0.22)}`,
-}));
-
-const MiniStat = ({ label, value, color = "#0f172a" }) => (
-    <Box sx={{ textAlign: "center", minWidth: 92 }}>
-        <Typography
-            sx={{
-                fontSize: "0.62rem",
-                fontWeight: 950,
-                color: "#94a3b8",
-                letterSpacing: "0.6px",
-            }}
-        >
-            {label}
-        </Typography>
-        <Typography sx={{ fontSize: "1.08rem", fontWeight: 1000, color }}>
-            {value}
-        </Typography>
-    </Box>
-);
-
-const ExpandBtn = styled(Box)(({ open }) => ({
-    width: 40,
-    height: 40,
-    borderRadius: 16,
-    display: "grid",
-    placeItems: "center",
-    background: open ? "#0f172a" : "rgba(15,23,42,0.06)",
-    color: open ? "#fff" : "#64748b",
-    transition: "0.2s",
-}));
-
-const ShipmentWrap = styled(Box)({
-    padding: 16,
-    background: "rgba(15,23,42,0.02)",
-    borderTop: "1px solid rgba(226,232,240,0.9)",
+const Pill = styled(Chip)(({ theme, pillcolor }) => {
+    const isDark = theme.palette.mode === "dark";
+    const c = pillcolor || "#3b82f6";
+    return {
+        height: 26,
+        borderRadius: 999,
+        fontWeight: 950,
+        background: alpha(c, isDark ? 0.22 : 0.12),
+        color: isDark ? theme.palette.text.primary : c,
+        border: `1px solid ${alpha(c, isDark ? 0.32 : 0.22)}`,
+    };
 });
 
-const ShipmentCard = styled(motion.div)(({ printed }) => ({
-    borderRadius: 22,
-    border: "1px solid rgba(226,232,240,0.95)",
-    background: "rgba(255,255,255,0.94)",
-    boxShadow: "0 14px 48px rgba(2,6,23,0.07)",
-    overflow: "hidden",
-    position: "relative",
-    padding: 16,
-    "&:before": {
-        content: '""',
-        position: "absolute",
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: 10,
-        background: printed
-            ? "linear-gradient(180deg,#10b981,#059669)"
-            : "linear-gradient(180deg,#3b82f6,#2563eb)",
+const MiniStat = ({ label, value, color = "#0f172a" }) => {
+    const theme = useTheme();
+    return (
+        <Box sx={{ textAlign: "center", minWidth: 92 }}>
+            <Typography
+                sx={{
+                    fontSize: "0.62rem",
+                    fontWeight: 950,
+                    color: theme.palette.text.secondary,
+                    letterSpacing: "0.6px",
+                }}
+            >
+                {label}
+            </Typography>
+            <Typography sx={{ fontSize: "1.08rem", fontWeight: 1000, color }}>
+                {value}
+            </Typography>
+        </Box>
+    );
+};
+
+const ExpandBtn = styled(Box)(({ theme, open }) => {
+    const isDark = theme.palette.mode === "dark";
+    return {
+        width: 40,
+        height: 40,
+        borderRadius: 16,
+        display: "grid",
+        placeItems: "center",
+        background: open ? (isDark ? alpha("#ffffff", 0.10) : "#0f172a") : (isDark ? alpha("#ffffff", 0.06) : "rgba(15,23,42,0.06)"),
+        color: open ? (isDark ? "#e2e8f0" : "#fff") : theme.palette.text.secondary,
+        transition: "0.2s",
+        border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "none",
+    };
+});
+
+const ShipmentWrap = styled(Box)(({ theme }) => {
+    const isDark = theme.palette.mode === "dark";
+    return {
+        padding: 16,
+        background: isDark ? alpha("#ffffff", 0.03) : "rgba(15,23,42,0.02)",
+        borderTop: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "1px solid rgba(226,232,240,0.9)",
+    };
+});
+
+const ShipmentCard = styled(motion.div)(({ theme, printed }) => {
+    const isDark = theme.palette.mode === "dark";
+    return {
+        borderRadius: 22,
+        border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "1px solid rgba(226,232,240,0.95)",
+        background: isDark ? alpha("#0b1220", 0.92) : "rgba(255,255,255,0.94)",
+        boxShadow: isDark ? "0 18px 55px rgba(0,0,0,0.50)" : "0 14px 48px rgba(2,6,23,0.07)",
+        overflow: "hidden",
+        position: "relative",
+        padding: 16,
+        "&:before": {
+            content: '""',
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 10,
+            background: printed
+                ? "linear-gradient(180deg,#10b981,#059669)"
+                : "linear-gradient(180deg,#3b82f6,#2563eb)",
+        },
+    };
+});
+
+const RowTabs = styled(Tabs)(({ theme }) => ({
+    minHeight: 34,
+    "& .MuiTabs-indicator": {
+        height: 3,
+        borderRadius: 3,
+        backgroundColor: theme.palette.primary.main,
     },
 }));
-
-const RowTabs = styled(Tabs)({
-    minHeight: 34,
-    "& .MuiTabs-indicator": { height: 3, borderRadius: 3 },
-});
-const RowTab = styled(Tab)({
+const RowTab = styled(Tab)(({ theme }) => ({
     minHeight: 34,
     textTransform: "none",
     fontWeight: 950,
     fontSize: "0.85rem",
-});
-
-const RouteBox = styled(Box)(({ t = "pickup" }) => ({
-    flex: 1,
-    borderRadius: 18,
-    padding: 14,
-    border: `1px dashed ${t === "pickup" ? alpha("#10b981", 0.55) : alpha("#ef4444", 0.55)
-        }`,
-    background: t === "pickup" ? alpha("#10b981", 0.06) : alpha("#ef4444", 0.06),
+    color: theme.palette.text.secondary,
+    "&.Mui-selected": { color: theme.palette.text.primary },
 }));
+
+const RouteBox = styled(Box)(({ theme, t = "pickup" }) => {
+    const isDark = theme.palette.mode === "dark";
+    const c = t === "pickup" ? "#10b981" : "#ef4444";
+    return {
+        flex: 1,
+        borderRadius: 18,
+        padding: 14,
+        border: `1px dashed ${alpha(c, isDark ? 0.60 : 0.55)}`,
+        background: alpha(c, isDark ? 0.10 : 0.06),
+    };
+});
 
 /* ------------------------ veri kuralları ------------------------ */
 const REGIONS = {
@@ -517,6 +568,9 @@ function buildSubDetails(rowName, allData) {
 
 /* ------------------------ satır bileşeni ------------------------ */
 function ProjectRow({ row, allData }) {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === "dark";
+
     const [open, setOpen] = useState(false);
     const [tab, setTab] = useState(0);
 
@@ -543,7 +597,7 @@ function ProjectRow({ row, allData }) {
                         <Typography
                             sx={{
                                 fontWeight: 1000,
-                                color: "#0f172a",
+                                color: theme.palette.text.primary,
                                 fontSize: "1.06rem",
                                 letterSpacing: "-0.5px",
                                 overflow: "hidden",
@@ -615,13 +669,14 @@ function ProjectRow({ row, allData }) {
                                                 sx={{
                                                     fontSize: "0.7rem",
                                                     fontWeight: 950,
-                                                    color: "#94a3b8",
+                                                    color: theme.palette.text.secondary,
                                                     letterSpacing: "0.8px",
                                                 }}
                                             >
                                                 SEFER
                                             </Typography>
-                                            <Typography sx={{ fontWeight: 1000, color: "#0f172a", fontSize: "1.05rem" }}>
+
+                                            <Typography sx={{ fontWeight: 1000, color: theme.palette.text.primary, fontSize: "1.05rem" }}>
                                                 {seferNo}
                                             </Typography>
 
@@ -635,8 +690,9 @@ function ProjectRow({ row, allData }) {
                                                         height: 24,
                                                         borderRadius: 999,
                                                         fontWeight: 950,
-                                                        bgcolor: timing.color,
+                                                        bgcolor: isDark ? alpha(timing.color, 0.28) : timing.color,
                                                         color: "#fff",
+                                                        border: isDark ? `1px solid ${alpha(timing.color, 0.45)}` : "none",
                                                     }}
                                                 />
 
@@ -648,9 +704,9 @@ function ProjectRow({ row, allData }) {
                                                             height: 24,
                                                             borderRadius: 999,
                                                             fontWeight: 950,
-                                                            bgcolor: alpha(timing.color, 0.12),
-                                                            color: timing.color,
-                                                            border: `1px solid ${alpha(timing.color, 0.22)}`,
+                                                            bgcolor: alpha(timing.color, isDark ? 0.22 : 0.12),
+                                                            color: isDark ? theme.palette.text.primary : timing.color,
+                                                            border: `1px solid ${alpha(timing.color, isDark ? 0.32 : 0.22)}`,
                                                         }}
                                                     />
                                                 )}
@@ -662,9 +718,9 @@ function ProjectRow({ row, allData }) {
                                                         height: 24,
                                                         borderRadius: 999,
                                                         fontWeight: 950,
-                                                        bgcolor: printed ? alpha("#10b981", 0.14) : alpha("#64748b", 0.12),
-                                                        color: printed ? "#059669" : "#64748b",
-                                                        border: `1px solid ${printed ? alpha("#10b981", 0.24) : alpha("#64748b", 0.20)}`,
+                                                        bgcolor: printed ? alpha("#10b981", isDark ? 0.18 : 0.14) : alpha("#64748b", isDark ? 0.18 : 0.12),
+                                                        color: printed ? (isDark ? theme.palette.text.primary : "#059669") : theme.palette.text.secondary,
+                                                        border: `1px solid ${printed ? alpha("#10b981", isDark ? 0.30 : 0.24) : alpha("#64748b", isDark ? 0.28 : 0.20)}`,
                                                     }}
                                                 />
                                             </Stack>
@@ -677,13 +733,14 @@ function ProjectRow({ row, allData }) {
                                                 height: 26,
                                                 borderRadius: 999,
                                                 fontWeight: 1000,
-                                                bgcolor: alpha("#0f172a", 0.06),
-                                                color: "#0f172a",
+                                                bgcolor: isDark ? alpha("#ffffff", 0.06) : alpha("#0f172a", 0.06),
+                                                color: theme.palette.text.primary,
+                                                border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "none",
                                             }}
                                         />
                                     </Stack>
 
-                                    <Divider sx={{ my: 1.2, opacity: 0.6 }} />
+                                    <Divider sx={{ my: 1.2, opacity: isDark ? 0.18 : 0.6 }} />
 
                                     {/* TAB CONTENT */}
                                     {tab === 0 && (
@@ -693,7 +750,7 @@ function ProjectRow({ row, allData }) {
                                                     sx={{
                                                         fontSize: "0.7rem",
                                                         fontWeight: 950,
-                                                        color: "#94a3b8",
+                                                        color: theme.palette.text.secondary,
                                                         letterSpacing: "0.6px",
                                                     }}
                                                 >
@@ -707,12 +764,13 @@ function ProjectRow({ row, allData }) {
                                                             borderRadius: 999,
                                                             display: "grid",
                                                             placeItems: "center",
-                                                            bgcolor: "rgba(15,23,42,0.06)",
+                                                            bgcolor: isDark ? alpha("#ffffff", 0.06) : "rgba(15,23,42,0.06)",
+                                                            border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "none",
                                                         }}
                                                     >
-                                                        <MdPerson size={18} color="#64748b" />
+                                                        <MdPerson size={18} color={isDark ? "#94a3b8" : "#64748b"} />
                                                     </Box>
-                                                    <Typography sx={{ fontWeight: 1000, color: "#0f172a" }}>
+                                                    <Typography sx={{ fontWeight: 1000, color: theme.palette.text.primary }}>
                                                         {item.OrderCreatedBy || "-"}
                                                     </Typography>
                                                 </Stack>
@@ -723,7 +781,7 @@ function ProjectRow({ row, allData }) {
                                                     sx={{
                                                         fontSize: "0.7rem",
                                                         fontWeight: 950,
-                                                        color: "#94a3b8",
+                                                        color: theme.palette.text.secondary,
                                                         letterSpacing: "0.6px",
                                                     }}
                                                 >
@@ -731,20 +789,20 @@ function ProjectRow({ row, allData }) {
                                                 </Typography>
                                                 <Stack sx={{ mt: 1 }} spacing={0.8}>
                                                     <Stack direction="row" spacing={1} alignItems="center">
-                                                        <MdHistory color="#64748b" />
-                                                        <Typography sx={{ fontWeight: 900, color: "#0f172a" }}>
+                                                        <MdHistory color={isDark ? "#94a3b8" : "#64748b"} />
+                                                        <Typography sx={{ fontWeight: 900, color: theme.palette.text.primary }}>
                                                             Sefer açılış: {formatDate(item.TMSDespatchCreatedDate)}
                                                         </Typography>
                                                     </Stack>
                                                     <Stack direction="row" spacing={1} alignItems="center">
                                                         <MdOutlineTimer color="#10b981" />
-                                                        <Typography sx={{ fontWeight: 900, color: "#0f172a" }}>
+                                                        <Typography sx={{ fontWeight: 900, color: theme.palette.text.primary }}>
                                                             Yükleme: {formatDate(item.PickupDate)}
                                                         </Typography>
                                                     </Stack>
                                                     <Stack direction="row" spacing={1} alignItems="center">
-                                                        <MdAssignment color="#64748b" />
-                                                        <Typography sx={{ fontWeight: 900, color: "#0f172a" }}>
+                                                        <MdAssignment color={isDark ? "#94a3b8" : "#64748b"} />
+                                                        <Typography sx={{ fontWeight: 900, color: theme.palette.text.primary }}>
                                                             Sipariş: {formatDate(item.OrderCreatedDate)}
                                                         </Typography>
                                                     </Stack>
@@ -756,7 +814,7 @@ function ProjectRow({ row, allData }) {
                                                     sx={{
                                                         fontSize: "0.7rem",
                                                         fontWeight: 950,
-                                                        color: "#94a3b8",
+                                                        color: theme.palette.text.secondary,
                                                         letterSpacing: "0.6px",
                                                     }}
                                                 >
@@ -764,13 +822,13 @@ function ProjectRow({ row, allData }) {
                                                 </Typography>
                                                 <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mt: 1 }}>
                                                     <MdPinDrop color="#10b981" />
-                                                    <Typography sx={{ fontWeight: 1000, color: "#0f172a" }}>
+                                                    <Typography sx={{ fontWeight: 1000, color: theme.palette.text.primary }}>
                                                         {pickupCity} / {pickupCounty}
                                                     </Typography>
                                                 </Stack>
                                                 <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mt: 0.6 }}>
                                                     <MdLocalShipping color="#3b82f6" />
-                                                    <Typography sx={{ fontWeight: 1000, color: "#0f172a" }}>
+                                                    <Typography sx={{ fontWeight: 1000, color: theme.palette.text.primary }}>
                                                         {deliveryCity} / {deliveryCounty}
                                                     </Typography>
                                                 </Stack>
@@ -784,7 +842,7 @@ function ProjectRow({ row, allData }) {
                                                 sx={{
                                                     fontSize: "0.72rem",
                                                     fontWeight: 950,
-                                                    color: "#94a3b8",
+                                                    color: theme.palette.text.secondary,
                                                     letterSpacing: "0.6px",
                                                 }}
                                             >
@@ -799,9 +857,12 @@ function ProjectRow({ row, allData }) {
                                                     sx={{
                                                         borderRadius: 999,
                                                         fontWeight: 950,
-                                                        bgcolor: alpha("#0f172a", 0.06),
+                                                        bgcolor: isDark ? alpha("#ffffff", 0.06) : alpha("#0f172a", 0.06),
+                                                        color: theme.palette.text.primary,
+                                                        border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "none",
                                                     }}
                                                 />
+
                                                 <Chip
                                                     icon={<MdBolt />}
                                                     label={timing.hours == null ? "---" : `${timing.hours.toFixed(1)} saat`}
@@ -809,11 +870,12 @@ function ProjectRow({ row, allData }) {
                                                     sx={{
                                                         borderRadius: 999,
                                                         fontWeight: 1000,
-                                                        bgcolor: alpha(timing.color, 0.14),
-                                                        color: timing.color,
-                                                        border: `1px solid ${alpha(timing.color, 0.22)}`,
+                                                        bgcolor: alpha(timing.color, isDark ? 0.22 : 0.14),
+                                                        color: isDark ? theme.palette.text.primary : timing.color,
+                                                        border: `1px solid ${alpha(timing.color, isDark ? 0.32 : 0.22)}`,
                                                     }}
                                                 />
+
                                                 <Chip
                                                     icon={<MdOutlineTimer />}
                                                     label={formatDate(item.PickupDate)}
@@ -821,8 +883,9 @@ function ProjectRow({ row, allData }) {
                                                     sx={{
                                                         borderRadius: 999,
                                                         fontWeight: 950,
-                                                        bgcolor: alpha("#10b981", 0.10),
-                                                        color: "#0f172a",
+                                                        bgcolor: alpha("#10b981", isDark ? 0.16 : 0.10),
+                                                        color: theme.palette.text.primary,
+                                                        border: isDark ? `1px solid ${alpha("#10b981", 0.20)}` : "none",
                                                     }}
                                                 />
                                             </Stack>
@@ -832,18 +895,19 @@ function ProjectRow({ row, allData }) {
                                                     mt: 2,
                                                     p: 2,
                                                     borderRadius: 20,
-                                                    border: "1px solid rgba(226,232,240,0.9)",
-                                                    bgcolor: alpha(timing.color, 0.08),
+                                                    border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "1px solid rgba(226,232,240,0.9)",
+                                                    bgcolor: alpha(timing.color, isDark ? 0.12 : 0.08),
                                                 }}
                                             >
-                                                <Typography sx={{ fontWeight: 1000, color: "#0f172a", fontSize: "1rem" }}>
+                                                <Typography sx={{ fontWeight: 1000, color: theme.palette.text.primary, fontSize: "1rem" }}>
                                                     {timing.level === "ok"
                                                         ? "✅ Zamanında"
                                                         : timing.level === "late"
                                                             ? "⚠️ Gecikme var"
                                                             : "ℹ️ Tarih eksik"}
                                                 </Typography>
-                                                <Typography sx={{ fontWeight: 800, color: "#64748b", mt: 0.4 }}>
+
+                                                <Typography sx={{ fontWeight: 800, color: theme.palette.text.secondary, mt: 0.4 }}>
                                                     Kural: Sefer açılıştan itibaren 30 saat altında yükleme yapılırsa “zamanında” sayılır.
                                                 </Typography>
                                             </Box>
@@ -855,12 +919,16 @@ function ProjectRow({ row, allData }) {
                                             <RouteBox t="pickup">
                                                 <Stack direction="row" spacing={1} alignItems="center">
                                                     <MdPinDrop color="#10b981" />
-                                                    <Typography sx={{ fontWeight: 1000, color: "#0f172a" }}>Yükleme Noktası</Typography>
+                                                    <Typography sx={{ fontWeight: 1000, color: theme.palette.text.primary }}>
+                                                        Yükleme Noktası
+                                                    </Typography>
                                                 </Stack>
-                                                <Typography sx={{ mt: 0.8, fontWeight: 1000, color: "#0f172a" }}>
+                                                <Typography sx={{ mt: 0.8, fontWeight: 1000, color: theme.palette.text.primary }}>
                                                     {pickupCity}
                                                 </Typography>
-                                                <Typography sx={{ fontWeight: 900, color: "#64748b" }}>{pickupCounty}</Typography>
+                                                <Typography sx={{ fontWeight: 900, color: theme.palette.text.secondary }}>
+                                                    {pickupCounty}
+                                                </Typography>
                                                 <Chip
                                                     size="small"
                                                     label={`Kod: ${item.PickupAddressCode || "-"}`}
@@ -868,8 +936,9 @@ function ProjectRow({ row, allData }) {
                                                         mt: 1.2,
                                                         borderRadius: 999,
                                                         fontWeight: 950,
-                                                        bgcolor: "#fff",
-                                                        border: "1px solid rgba(226,232,240,0.9)",
+                                                        bgcolor: isDark ? alpha("#ffffff", 0.06) : "#fff",
+                                                        color: theme.palette.text.primary,
+                                                        border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "1px solid rgba(226,232,240,0.9)",
                                                     }}
                                                 />
                                             </RouteBox>
@@ -880,22 +949,27 @@ function ProjectRow({ row, allData }) {
 
                                             <RouteBox t="delivery">
                                                 <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
-                                                    <Typography sx={{ fontWeight: 1000, color: "#0f172a" }}>Teslimat Noktası</Typography>
+                                                    <Typography sx={{ fontWeight: 1000, color: theme.palette.text.primary }}>
+                                                        Teslimat Noktası
+                                                    </Typography>
                                                     <MdPinDrop color="#ef4444" />
                                                 </Stack>
+
                                                 <Typography
                                                     sx={{
                                                         mt: 0.8,
                                                         fontWeight: 1000,
-                                                        color: "#0f172a",
+                                                        color: theme.palette.text.primary,
                                                         textAlign: "right",
                                                     }}
                                                 >
                                                     {deliveryCity}
                                                 </Typography>
-                                                <Typography sx={{ fontWeight: 900, color: "#64748b", textAlign: "right" }}>
+
+                                                <Typography sx={{ fontWeight: 900, color: theme.palette.text.secondary, textAlign: "right" }}>
                                                     {deliveryCounty}
                                                 </Typography>
+
                                                 <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                                                     <Chip
                                                         size="small"
@@ -904,8 +978,9 @@ function ProjectRow({ row, allData }) {
                                                             mt: 1.2,
                                                             borderRadius: 999,
                                                             fontWeight: 950,
-                                                            bgcolor: "#fff",
-                                                            border: "1px solid rgba(226,232,240,0.9)",
+                                                            bgcolor: isDark ? alpha("#ffffff", 0.06) : "#fff",
+                                                            color: theme.palette.text.primary,
+                                                            border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "1px solid rgba(226,232,240,0.9)",
                                                         }}
                                                     />
                                                 </Box>
@@ -924,6 +999,9 @@ function ProjectRow({ row, allData }) {
 
 /* ------------------------ ana bileşen ------------------------ */
 export default function UltraProjeTablosu({ data }) {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === "dark";
+
     const [selectedRegion, setSelectedRegion] = useState("GEBZE");
     const [query, setQuery] = useState("");
     const [sortBy, setSortBy] = useState("perf"); // perf | plan | late
@@ -1110,32 +1188,42 @@ export default function UltraProjeTablosu({ data }) {
                                             width: 46,
                                             height: 46,
                                             borderRadius: 18,
-                                            bgcolor: "#0f172a",
+                                            bgcolor: isDark ? alpha("#ffffff", 0.08) : "#0f172a",
                                             display: "grid",
                                             placeItems: "center",
-                                            boxShadow: "0 18px 45px rgba(2,6,23,0.22)",
+                                            boxShadow: isDark ? "0 18px 45px rgba(0,0,0,0.55)" : "0 18px 45px rgba(2,6,23,0.22)",
+                                            border: isDark ? `1px solid ${alpha("#ffffff", 0.12)}` : "none",
                                         }}
                                     >
-                                        <MdMonitor size={24} color="#fff" />
+                                        <MdMonitor size={24} color={isDark ? "#e2e8f0" : "#fff"} />
                                     </Box>
+
                                     <Box sx={{ minWidth: 0 }}>
                                         <Typography
                                             sx={{
                                                 fontWeight: 1000,
-                                                color: "#0f172a",
+                                                color: theme.palette.text.primary,
                                                 fontSize: "1.25rem",
                                                 letterSpacing: "-0.7px",
                                             }}
                                         >
                                             ANALİZ PANELİ
                                         </Typography>
-                                        <Typography sx={{ fontWeight: 800, color: "#64748b" }}>
+                                        <Typography sx={{ fontWeight: 800, color: theme.palette.text.secondary }}>
                                             Kart görünümü • Filtreleme • Zaman analizi • Rota
                                         </Typography>
                                     </Box>
 
                                     <Tooltip title="Bu panel, sefer açılışından yüklemeye kadar geçen süreyi (30 saat kuralı) baz alır.">
-                                        <IconButton size="small" sx={{ ml: "auto", bgcolor: alpha("#0f172a", 0.05) }}>
+                                        <IconButton
+                                            size="small"
+                                            sx={{
+                                                ml: "auto",
+                                                bgcolor: isDark ? alpha("#ffffff", 0.06) : alpha("#0f172a", 0.05),
+                                                border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "none",
+                                                color: theme.palette.text.primary,
+                                            }}
+                                        >
                                             <MdInfoOutline />
                                         </IconButton>
                                     </Tooltip>
@@ -1143,22 +1231,22 @@ export default function UltraProjeTablosu({ data }) {
 
                                 <Grid2>
                                     <KPI accent="#0ea5e9" whileHover={{ scale: 1.01 }}>
-                                        <Typography sx={{ fontSize: "0.62rem", fontWeight: 950, color: "#94a3b8", letterSpacing: "0.8px" }}>
+                                        <Typography sx={{ fontSize: "0.62rem", fontWeight: 950, color: theme.palette.text.secondary, letterSpacing: "0.8px" }}>
                                             TOPLAM TALEP
                                         </Typography>
-                                        <Typography sx={{ fontSize: "1.55rem", fontWeight: 1000, color: "#0f172a" }}>
+                                        <Typography sx={{ fontSize: "1.55rem", fontWeight: 1000, color: theme.palette.text.primary }}>
                                             {kpi.plan}
                                         </Typography>
                                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
                                             <MdTrendingUp color="#0ea5e9" />
-                                            <Typography sx={{ fontWeight: 900, color: "#64748b" }}>
+                                            <Typography sx={{ fontWeight: 900, color: theme.palette.text.secondary }}>
                                                 Bölge: {selectedRegion}
                                             </Typography>
                                         </Stack>
                                     </KPI>
 
                                     <KPI accent="#10b981" whileHover={{ scale: 1.01 }}>
-                                        <Typography sx={{ fontSize: "0.62rem", fontWeight: 950, color: "#94a3b8", letterSpacing: "0.8px" }}>
+                                        <Typography sx={{ fontSize: "0.62rem", fontWeight: 950, color: theme.palette.text.secondary, letterSpacing: "0.8px" }}>
                                             TEDARİK EDİLEN
                                         </Typography>
                                         <Typography sx={{ fontSize: "1.55rem", fontWeight: 1000, color: "#10b981" }}>
@@ -1166,14 +1254,14 @@ export default function UltraProjeTablosu({ data }) {
                                         </Typography>
                                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
                                             <MdBolt color="#10b981" />
-                                            <Typography sx={{ fontWeight: 900, color: "#64748b" }}>
+                                            <Typography sx={{ fontWeight: 900, color: theme.palette.text.secondary }}>
                                                 Aktif seferler
                                             </Typography>
                                         </Stack>
                                     </KPI>
 
                                     <KPI accent={kpi.perf >= 90 ? "#10b981" : "#f59e0b"} whileHover={{ scale: 1.01 }}>
-                                        <Typography sx={{ fontSize: "0.62rem", fontWeight: 950, color: "#94a3b8", letterSpacing: "0.8px" }}>
+                                        <Typography sx={{ fontSize: "0.62rem", fontWeight: 950, color: theme.palette.text.secondary, letterSpacing: "0.8px" }}>
                                             ZAMANINDA ORANI
                                         </Typography>
                                         <Typography
@@ -1187,23 +1275,23 @@ export default function UltraProjeTablosu({ data }) {
                                         </Typography>
                                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
                                             <MdWarning color={kpi.perf >= 90 ? "#10b981" : "#f59e0b"} />
-                                            <Typography sx={{ fontWeight: 900, color: "#64748b" }}>
+                                            <Typography sx={{ fontWeight: 900, color: theme.palette.text.secondary }}>
                                                 30 saat kuralı
                                             </Typography>
                                         </Stack>
                                     </KPI>
 
                                     <KPI accent="#ef4444" whileHover={{ scale: 1.01 }}>
-                                        <Typography sx={{ fontSize: "0.62rem", fontWeight: 950, color: "#94a3b8", letterSpacing: "0.8px" }}>
+                                        <Typography sx={{ fontSize: "0.62rem", fontWeight: 950, color: theme.palette.text.secondary, letterSpacing: "0.8px" }}>
                                             RİSK: GECİKME / İPTAL
                                         </Typography>
-                                        <Typography sx={{ fontSize: "1.15rem", fontWeight: 1000, color: "#0f172a" }}>
+                                        <Typography sx={{ fontSize: "1.15rem", fontWeight: 1000, color: theme.palette.text.primary }}>
                                             <span style={{ color: "#ef4444" }}>{kpi.gec}</span> /{" "}
                                             <span style={{ color: "#b91c1c" }}>{kpi.iptal}</span>
                                         </Typography>
                                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
                                             <MdCancel color="#ef4444" />
-                                            <Typography sx={{ fontWeight: 900, color: "#64748b" }}>
+                                            <Typography sx={{ fontWeight: 900, color: theme.palette.text.secondary }}>
                                                 Takip alanı
                                             </Typography>
                                         </Stack>
@@ -1232,8 +1320,9 @@ export default function UltraProjeTablosu({ data }) {
                                                         sx={{
                                                             height: 18,
                                                             fontWeight: 1000,
-                                                            bgcolor: alpha("#0f172a", 0.08),
-                                                            color: "#0f172a",
+                                                            bgcolor: isDark ? alpha("#ffffff", 0.10) : alpha("#0f172a", 0.08),
+                                                            color: theme.palette.text.primary,
+                                                            border: isDark ? `1px solid ${alpha("#ffffff", 0.12)}` : "none",
                                                         }}
                                                     />
                                                 </Stack>
@@ -1252,7 +1341,12 @@ export default function UltraProjeTablosu({ data }) {
                                         sx={{
                                             "& .MuiOutlinedInput-root": {
                                                 borderRadius: 18,
-                                                bgcolor: "rgba(255,255,255,0.95)",
+                                                bgcolor: isDark ? alpha("#ffffff", 0.06) : "rgba(255,255,255,0.95)",
+                                                color: theme.palette.text.primary,
+                                                border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "none",
+                                            },
+                                            "& .MuiOutlinedInput-notchedOutline": {
+                                                borderColor: isDark ? alpha("#ffffff", 0.12) : alpha("#0f172a", 0.12),
                                             },
                                         }}
                                         InputProps={{
@@ -1268,7 +1362,14 @@ export default function UltraProjeTablosu({ data }) {
                                         <Select
                                             value={sortBy}
                                             onChange={(e) => setSortBy(e.target.value)}
-                                            sx={{ borderRadius: 18, bgcolor: "rgba(255,255,255,0.95)" }}
+                                            sx={{
+                                                borderRadius: 18,
+                                                bgcolor: isDark ? alpha("#ffffff", 0.06) : "rgba(255,255,255,0.95)",
+                                                color: theme.palette.text.primary,
+                                                "& .MuiOutlinedInput-notchedOutline": {
+                                                    borderColor: isDark ? alpha("#ffffff", 0.12) : alpha("#0f172a", 0.12),
+                                                },
+                                            }}
                                         >
                                             <MenuItem value="perf">Sırala: Performans</MenuItem>
                                             <MenuItem value="plan">Sırala: Talep (yüksek)</MenuItem>
@@ -1283,8 +1384,8 @@ export default function UltraProjeTablosu({ data }) {
                                                 px: 1.2,
                                                 py: 0.3,
                                                 borderRadius: 18,
-                                                bgcolor: "rgba(255,255,255,0.95)",
-                                                border: "1px solid rgba(226,232,240,0.9)",
+                                                bgcolor: isDark ? alpha("#ffffff", 0.06) : "rgba(255,255,255,0.95)",
+                                                border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "1px solid rgba(226,232,240,0.9)",
                                             }}
                                             control={
                                                 <Switch
@@ -1293,7 +1394,7 @@ export default function UltraProjeTablosu({ data }) {
                                                 />
                                             }
                                             label={
-                                                <Typography sx={{ fontWeight: 950, color: "#0f172a" }}>
+                                                <Typography sx={{ fontWeight: 950, color: theme.palette.text.primary }}>
                                                     Sadece gecikenler
                                                 </Typography>
                                             }
@@ -1305,14 +1406,14 @@ export default function UltraProjeTablosu({ data }) {
                                     sx={{
                                         p: 2,
                                         borderRadius: 22,
-                                        border: "1px solid rgba(226,232,240,0.9)",
-                                        bgcolor: "rgba(255,255,255,0.85)",
+                                        border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "1px solid rgba(226,232,240,0.9)",
+                                        bgcolor: isDark ? alpha("#0b1220", 0.70) : "rgba(255,255,255,0.85)",
                                     }}
                                 >
-                                    <Typography sx={{ fontWeight: 1000, color: "#0f172a", letterSpacing: "-0.4px" }}>
+                                    <Typography sx={{ fontWeight: 1000, color: theme.palette.text.primary, letterSpacing: "-0.4px" }}>
                                         Liste: {rows.length} proje
                                     </Typography>
-                                    <Typography sx={{ fontWeight: 800, color: "#64748b", mt: 0.4 }}>
+                                    <Typography sx={{ fontWeight: 800, color: theme.palette.text.secondary, mt: 0.4 }}>
                                         Detay için kartlara tıkla (sefer listesi, zaman çizelgesi ve rota).
                                     </Typography>
                                 </Box>
@@ -1333,17 +1434,17 @@ export default function UltraProjeTablosu({ data }) {
                                 elevation={0}
                                 sx={{
                                     borderRadius: 26,
-                                    border: "1px solid rgba(226,232,240,0.9)",
-                                    background: "rgba(255,255,255,0.85)",
+                                    border: isDark ? `1px solid ${alpha("#ffffff", 0.10)}` : "1px solid rgba(226,232,240,0.9)",
+                                    background: isDark ? alpha("#0b1220", 0.72) : "rgba(255,255,255,0.85)",
                                     p: 6,
                                     textAlign: "center",
-                                    boxShadow: "0 16px 55px rgba(2,6,23,0.07)",
+                                    boxShadow: isDark ? "0 18px 65px rgba(0,0,0,0.55)" : "0 16px 55px rgba(2,6,23,0.07)",
                                 }}
                             >
-                                <Typography sx={{ fontWeight: 1000, color: "#0f172a", fontSize: "1.2rem" }}>
+                                <Typography sx={{ fontWeight: 1000, color: theme.palette.text.primary, fontSize: "1.2rem" }}>
                                     Sonuç bulunamadı
                                 </Typography>
-                                <Typography sx={{ fontWeight: 800, color: "#64748b", mt: 0.6 }}>
+                                <Typography sx={{ fontWeight: 800, color: theme.palette.text.secondary, mt: 0.6 }}>
                                     Arama kriterini değiştir veya “Sadece gecikenler” filtresini kapat.
                                 </Typography>
                             </Paper>

@@ -1,7 +1,18 @@
 ﻿import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
-    Box, Container, AppBar, Toolbar, Typography, Drawer, List, ListItemButton,
-    ListItemIcon, ListItemText, Divider, IconButton
+    Box,
+    Container,
+    AppBar,
+    Toolbar,
+    Typography,
+    Drawer,
+    List,
+    ListItemButton,
+    ListItemIcon,
+    ListItemText,
+    Divider,
+    IconButton,
+    Tooltip,
 } from '@mui/material';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
@@ -10,6 +21,10 @@ import HomeIcon from '@mui/icons-material/Home';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import LightModeIcon from '@mui/icons-material/LightMode';
+
+import { useTheme } from '@mui/material/styles';
 
 import YukleniyorEkrani from './YukleniyorEkrani';
 import DetayPaneli from './DetayPaneli';
@@ -29,25 +44,25 @@ async function fetchAllRows({ startIso, endIso }) {
         const { data: page, error } = await supabase
             .from('siparisler_raw_v')
             .select(`
-        proje,
-        hizmet_tipi,
-        arac_calisma_tipi,
-        pozisyon_no,
-        sefer_no,
-        siparis_durumu,
-        yukleme_ili,
-        yukleme_ilcesi,
-        teslim_ili,
-        teslim_ilcesi,
-        yukleme_noktasi,
-        teslim_noktasi,
-        sipras_acan,
-        siparis_acilis_zamani,
-        sefer_acilis_zamani,
-        sefer_hesap_ozeti,
-        yukleme_tarihi,
-        yukleme_ts
-      `)
+                proje,
+                hizmet_tipi,
+                arac_calisma_tipi,
+                pozisyon_no,
+                sefer_no,
+                siparis_durumu,
+                yukleme_ili,
+                yukleme_ilcesi,
+                teslim_ili,
+                teslim_ilcesi,
+                yukleme_noktasi,
+                teslim_noktasi,
+                sipras_acan,
+                siparis_acilis_zamani,
+                sefer_acilis_zamani,
+                sefer_hesap_ozeti,
+                yukleme_tarihi,
+                yukleme_ts
+            `)
             .gte('yukleme_ts', startIso)
             .lte('yukleme_ts', endIso)
             .order('yukleme_ts', { ascending: false })
@@ -57,7 +72,6 @@ async function fetchAllRows({ startIso, endIso }) {
 
         all = all.concat(page || []);
 
-        // son sayfa
         if (!page || page.length < PAGE_SIZE) break;
 
         from += PAGE_SIZE;
@@ -66,27 +80,25 @@ async function fetchAllRows({ startIso, endIso }) {
     return all;
 }
 
-
-// "Teslim Edildi" gibi text status -> eski koddaki numeric OrderStatu (opsiyonel)
 const STATUS_TEXT_TO_CODE = {
-    "Bekliyor": 1,
-    "Onaylandı": 2,
-    "Spot Araç Planlamada": 3,
-    "Araç Atandı": 4,
-    "Araç Yüklendi": 5,
-    "Araç Yolda": 6,
-    "Teslim Edildi": 7,
-    "Tamamlandı": 8,
-    "Eksik Evrak": 10,
-    "Araç Boşaltmada": 80,
-    "Filo Araç Planlamada": 90,
-    "İptal": 200,
+    Bekliyor: 1,
+    Onaylandı: 2,
+    'Spot Araç Planlamada': 3,
+    'Araç Atandı': 4,
+    'Araç Yüklendi': 5,
+    'Araç Yolda': 6,
+    'Teslim Edildi': 7,
+    Tamamlandı: 8,
+    'Eksik Evrak': 10,
+    'Araç Boşaltmada': 80,
+    'Filo Araç Planlamada': 90,
+    İptal: 200,
 };
 
-const normalizeTR = (s) =>
-    (s ?? '').toString().trim().toLocaleUpperCase('tr-TR');
+const normalizeTR = (s) => (s ?? '').toString().trim().toLocaleUpperCase('tr-TR');
 
-export default function Layout() {
+export default function Layout({ mode, setMode }) {
+    const theme = useTheme();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -106,6 +118,7 @@ export default function Layout() {
         if (location.pathname.startsWith('/tedarik-analiz')) return 'Tedarik Analiz';
         if (location.pathname.startsWith('/siparis-analiz')) return 'Sipariş Analiz';
         if (location.pathname.startsWith('/proje-analiz')) return 'Proje Analiz';
+        if (location.pathname.startsWith('/veri-aktarim')) return 'Veri Aktarım';
         return '';
     }, [location.pathname]);
 
@@ -116,11 +129,6 @@ export default function Layout() {
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
 
-        console.log('🚀 handleFilter başladı', {
-            start: start.toISOString(),
-            end: end.toISOString(),
-        });
-
         setLoading(true);
 
         try {
@@ -129,13 +137,9 @@ export default function Layout() {
                 endIso: end.toISOString(),
             });
 
-            console.log('🟩 supabase result (ALL)', { rowsLength: rows?.length ?? 0 });
-
-            // ✅ ESKİ UI alanlarına mapping
             const mapped = (rows || []).map((r) => {
                 const orderStatusText = (r.siparis_durumu ?? '').toString().trim();
-                const orderStatusCode =
-                    STATUS_TEXT_TO_CODE[orderStatusText] ?? orderStatusText; // bulamazsa text bırak
+                const orderStatusCode = STATUS_TEXT_TO_CODE[orderStatusText] ?? orderStatusText;
 
                 const isPrintBool =
                     normalizeTR(r.sefer_hesap_ozeti) === 'CHECKED' ||
@@ -143,26 +147,24 @@ export default function Layout() {
                     r.sefer_hesap_ozeti === true;
 
                 return {
-                    // ✅ eski kodların beklediği isimler
                     ProjectName: r.proje,
-                    ServiceName: r.hizmet_tipi,              // ÖNEMLİ: hizmet_tipi
-                    SubServiceName: r.hizmet_tipi ?? '',     // tablon yoksa aynı kalsın
+                    ServiceName: r.hizmet_tipi,
+                    SubServiceName: r.hizmet_tipi ?? '',
 
                     TMSVehicleRequestDocumentNo: r.pozisyon_no,
                     TMSDespatchDocumentNo: r.sefer_no,
 
-                    OrderStatu: orderStatusCode,             // numericse numeric, değilse text kalır
+                    OrderStatu: orderStatusCode,
 
                     PickupCityName: r.yukleme_ili,
                     PickupCountyName: r.yukleme_ilcesi,
                     DeliveryCityName: r.teslim_ili,
                     DeliveryCountyName: r.teslim_ilcesi,
 
-                    VehicleWorkingName: r.arac_calisma_tipi, // SPOT/FİLO vs
+                    VehicleWorkingName: r.arac_calisma_tipi,
 
-                    IsPrint: isPrintBool,                    // boolean olmalı
+                    IsPrint: isPrintBool,
 
-                    // Tarihler
                     TMSDespatchCreatedDate: r.sefer_acilis_zamani,
                     PickupDate: r.yukleme_tarihi,
                     OrderDate: r.yukleme_tarihi,
@@ -174,12 +176,9 @@ export default function Layout() {
                     OrderCreatedBy: r.sipras_acan,
                     CurrentAccountTitle: r.sipras_acan ?? '-',
 
-                    _raw: r
+                    _raw: r,
                 };
             });
-
-            console.log('✅ mapped length:', mapped.length);
-            console.log('🔎 sample mapped[0]:', mapped[0]);
 
             setData(mapped);
         } catch (err) {
@@ -187,7 +186,6 @@ export default function Layout() {
             setData([]);
         } finally {
             setLoading(false);
-            console.log('🏁 handleFilter bitti');
         }
     }, [startDate, endDate]);
 
@@ -195,15 +193,41 @@ export default function Layout() {
         handleFilter();
     }, [handleFilter]);
 
-    const outletContext = {
-        data,
-        loading,
-        startDate,
-        endDate,
-        setStartDate,
-        setEndDate,
-        handleFilter,
-        openDetail: (type) => { setDetailType(type); setDetailOpen(true); }
+    const outletContext = useMemo(
+        () => ({
+            data,
+            loading,
+            startDate,
+            endDate,
+            setStartDate,
+            setEndDate,
+            handleFilter,
+            openDetail: (type) => {
+                setDetailType(type);
+                setDetailOpen(true);
+            },
+        }),
+        [data, loading, startDate, endDate, handleFilter]
+    );
+
+    // theme-aware renkler
+    const appBarBg =
+        theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(2, 6, 23, 0.75)';
+    const appBarBorder = theme.palette.mode === 'light' ? '#e2e8f0' : 'rgba(148, 163, 184, 0.18)';
+    const drawerBorder = theme.palette.mode === 'light' ? '#e2e8f0' : 'rgba(148, 163, 184, 0.18)';
+    const drawerBg = theme.palette.mode === 'light' ? '#ffffff' : '#020617';
+    const textMain = theme.palette.mode === 'light' ? '#0f172a' : '#e2e8f0';
+    const textSub = theme.palette.mode === 'light' ? '#64748b' : '#94a3b8';
+    const pillBg = theme.palette.mode === 'light' ? '#f1f5f9' : 'rgba(148, 163, 184, 0.12)';
+    const pillBorder = theme.palette.mode === 'light' ? '#e2e8f0' : 'rgba(148, 163, 184, 0.18)';
+
+    const selectedBg = theme.palette.mode === 'light' ? '#eff6ff' : 'rgba(37, 99, 235, 0.18)';
+    const selectedHoverBg = theme.palette.mode === 'light' ? '#dbeafe' : 'rgba(37, 99, 235, 0.24)';
+
+    const menuItemSx = {
+        borderRadius: 2,
+        mx: 1,
+        '&.Mui-selected': { bgcolor: selectedBg, '&:hover': { bgcolor: selectedHoverBg } },
     };
 
     return (
@@ -214,54 +238,77 @@ export default function Layout() {
                 position="sticky"
                 elevation={0}
                 sx={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    backgroundColor: appBarBg,
                     backdropFilter: 'blur(10px)',
-                    borderBottom: '1px solid #e2e8f0',
-                    color: '#1e293b',
-                    zIndex: (t) => t.zIndex.drawer + 1
+                    borderBottom: `1px solid ${appBarBorder}`,
+                    color: textMain,
+                    zIndex: (t) => t.zIndex.drawer + 1,
                 }}
             >
                 <Container maxWidth={false} disableGutters sx={{ px: 2 }}>
                     <Toolbar variant="dense" sx={{ justifyContent: 'space-between', height: 64 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                            <IconButton onClick={() => setSidebarOpen(p => !p)} size="small" sx={{ color: '#1e293b' }}>
+                            <IconButton
+                                onClick={() => setSidebarOpen((p) => !p)}
+                                size="small"
+                                sx={{ color: textMain }}
+                            >
                                 <MenuIcon />
                             </IconButton>
 
-                            <Typography variant="h6" sx={{ fontWeight: 900, color: '#2563eb', display: 'flex', alignItems: 'center' }}>
-                                TMS <Box component="span" sx={{ color: '#64748b', fontWeight: 500, ml: 1 }}>Analiz Paneli</Box>
+                            <Typography
+                                variant="h6"
+                                sx={{ fontWeight: 900, color: theme.palette.primary.main, display: 'flex', alignItems: 'center' }}
+                            >
+                                TMS{' '}
+                                <Box component="span" sx={{ color: textSub, fontWeight: 500, ml: 1 }}>
+                                    Analiz Paneli
+                                </Box>
                             </Typography>
 
                             <Typography
                                 variant="caption"
                                 sx={{
                                     ml: 1,
-                                    color: '#64748b',
+                                    color: textSub,
                                     fontWeight: 800,
-                                    bgcolor: '#f1f5f9',
+                                    bgcolor: pillBg,
                                     px: 1.2,
                                     py: 0.4,
                                     borderRadius: '8px',
-                                    border: '1px solid #e2e8f0'
+                                    border: `1px solid ${pillBorder}`,
                                 }}
                             >
                                 {screenTitle}
                             </Typography>
                         </Box>
 
-                        <Typography
-                            variant="caption"
-                            sx={{
-                                color: '#94a3b8',
-                                fontWeight: 700,
-                                bgcolor: '#f1f5f9',
-                                px: 1.5,
-                                py: 0.5,
-                                borderRadius: '6px'
-                            }}
-                        >
-                            {new Date().toLocaleDateString('tr-TR')}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography
+                                variant="caption"
+                                sx={{
+                                    color: theme.palette.mode === 'light' ? '#94a3b8' : '#a3b3c8',
+                                    fontWeight: 700,
+                                    bgcolor: pillBg,
+                                    px: 1.5,
+                                    py: 0.5,
+                                    borderRadius: '6px',
+                                    border: `1px solid ${pillBorder}`,
+                                }}
+                            >
+                                {new Date().toLocaleDateString('tr-TR')}
+                            </Typography>
+
+                            <Tooltip title={mode === 'light' ? 'Koyu tema' : 'Açık tema'}>
+                                <IconButton
+                                    size="small"
+                                    onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}
+                                    sx={{ color: textMain }}
+                                >
+                                    {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
                     </Toolbar>
                 </Container>
             </AppBar>
@@ -275,63 +322,81 @@ export default function Layout() {
                     '& .MuiDrawer-paper': {
                         width: DRAWER_WIDTH,
                         boxSizing: 'border-box',
-                        borderRight: '1px solid #e2e8f0',
-                        background: '#ffffff'
-                    }
+                        borderRight: `1px solid ${drawerBorder}`,
+                        background: drawerBg,
+                    },
                 }}
             >
                 <Box sx={{ height: 64 }} />
                 <Box sx={{ px: 2, py: 2 }}>
-                    <Typography sx={{ fontWeight: 900, color: '#0f172a' }}>Menü</Typography>
-                    <Typography sx={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>
+                    <Typography sx={{ fontWeight: 900, color: textMain }}>Menü</Typography>
+                    <Typography sx={{ fontSize: 12, color: textSub, fontWeight: 600 }}>
                         Analiz ekranını seçin
                     </Typography>
                 </Box>
-                <Divider />
+                <Divider sx={{ borderColor: drawerBorder }} />
 
                 <List sx={{ px: 1, py: 1 }}>
                     <ListItemButton
                         selected={location.pathname === '/'}
                         onClick={() => navigate('/')}
-                        sx={{ borderRadius: 2, mx: 1, '&.Mui-selected': { bgcolor: '#eff6ff', '&:hover': { bgcolor: '#dbeafe' } } }}
+                        sx={menuItemSx}
                     >
-                        <ListItemIcon sx={{ minWidth: 38 }}>
+                        <ListItemIcon sx={{ minWidth: 38, color: textSub }}>
                             <HomeIcon color={location.pathname === '/' ? 'primary' : 'inherit'} />
                         </ListItemIcon>
-                        <ListItemText primary="Anasayfa" primaryTypographyProps={{ fontWeight: 800, color: '#0f172a' }} />
+                        <ListItemText
+                            primary="Anasayfa"
+                            primaryTypographyProps={{ fontWeight: 800, color: textMain }}
+                        />
                     </ListItemButton>
 
                     <ListItemButton
                         selected={location.pathname.startsWith('/tedarik-analiz')}
                         onClick={() => navigate('/tedarik-analiz')}
-                        sx={{ borderRadius: 2, mx: 1, '&.Mui-selected': { bgcolor: '#eff6ff', '&:hover': { bgcolor: '#dbeafe' } } }}
+                        sx={menuItemSx}
                     >
-                        <ListItemIcon sx={{ minWidth: 38 }}>
-                            <LocalShippingIcon color={location.pathname.startsWith('/tedarik-analiz') ? 'primary' : 'inherit'} />
+                        <ListItemIcon sx={{ minWidth: 38, color: textSub }}>
+                            <LocalShippingIcon
+                                color={location.pathname.startsWith('/tedarik-analiz') ? 'primary' : 'inherit'}
+                            />
                         </ListItemIcon>
-                        <ListItemText primary="Tedarik Analiz" primaryTypographyProps={{ fontWeight: 800, color: '#0f172a' }} />
+                        <ListItemText
+                            primary="Tedarik Analiz"
+                            primaryTypographyProps={{ fontWeight: 800, color: textMain }}
+                        />
                     </ListItemButton>
 
                     <ListItemButton
                         selected={location.pathname.startsWith('/siparis-analiz')}
                         onClick={() => navigate('/siparis-analiz')}
-                        sx={{ borderRadius: 2, mx: 1, '&.Mui-selected': { bgcolor: '#eff6ff', '&:hover': { bgcolor: '#dbeafe' } } }}
+                        sx={menuItemSx}
                     >
-                        <ListItemIcon sx={{ minWidth: 38 }}>
-                            <ReceiptLongIcon color={location.pathname.startsWith('/siparis-analiz') ? 'primary' : 'inherit'} />
+                        <ListItemIcon sx={{ minWidth: 38, color: textSub }}>
+                            <ReceiptLongIcon
+                                color={location.pathname.startsWith('/siparis-analiz') ? 'primary' : 'inherit'}
+                            />
                         </ListItemIcon>
-                        <ListItemText primary="Sipariş Analiz" primaryTypographyProps={{ fontWeight: 800, color: '#0f172a' }} />
+                        <ListItemText
+                            primary="Sipariş Analiz"
+                            primaryTypographyProps={{ fontWeight: 800, color: textMain }}
+                        />
                     </ListItemButton>
 
                     <ListItemButton
                         selected={location.pathname.startsWith('/proje-analiz')}
                         onClick={() => navigate('/proje-analiz')}
-                        sx={{ borderRadius: 2, mx: 1, '&.Mui-selected': { bgcolor: '#eff6ff', '&:hover': { bgcolor: '#dbeafe' } } }}
+                        sx={menuItemSx}
                     >
-                        <ListItemIcon sx={{ minWidth: 38 }}>
-                            <AssessmentIcon color={location.pathname.startsWith('/proje-analiz') ? 'primary' : 'inherit'} />
+                        <ListItemIcon sx={{ minWidth: 38, color: textSub }}>
+                            <AssessmentIcon
+                                color={location.pathname.startsWith('/proje-analiz') ? 'primary' : 'inherit'}
+                            />
                         </ListItemIcon>
-                        <ListItemText primary="Proje Analiz" primaryTypographyProps={{ fontWeight: 800, color: '#0f172a' }} />
+                        <ListItemText
+                            primary="Proje Analiz"
+                            primaryTypographyProps={{ fontWeight: 800, color: textMain }}
+                        />
                     </ListItemButton>
                 </List>
             </Drawer>
@@ -339,8 +404,8 @@ export default function Layout() {
             <Box
                 sx={{
                     ml: sidebarOpen ? `${DRAWER_WIDTH}px` : 0,
-                    transition: "margin-left 0.2s ease",
-                    width: sidebarOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : "100%", // ✅ önemli
+                    transition: 'margin-left 0.2s ease',
+                    width: sidebarOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%',
                 }}
             >
                 <Container maxWidth={false} disableGutters sx={{ mt: 3, mb: 4, px: 2 }}>
@@ -349,11 +414,7 @@ export default function Layout() {
             </Box>
 
             {detailOpen && (
-                <DetayPaneli
-                    type={detailType}
-                    data={data}
-                    onClose={() => setDetailOpen(false)}
-                />
+                <DetayPaneli type={detailType} data={data} onClose={() => setDetailOpen(false)} />
             )}
         </>
     );

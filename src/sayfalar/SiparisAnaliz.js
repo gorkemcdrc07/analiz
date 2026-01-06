@@ -1,17 +1,32 @@
-﻿import { useEffect, useMemo, useState, useRef } from 'react';
+﻿import { useEffect, useMemo, useState, useRef } from "react";
 import {
-    Box, Fade, Paper, Stack, Typography, TextField, Button,
-    Table, TableHead, TableRow, TableCell, TableBody,
-    Avatar, LinearProgress, Chip, Container, alpha, Grid,
-    CardActionArea, CircularProgress, Tooltip
-} from '@mui/material';
-import {
-    Search, Assignment,
-    FilterAlt, Star, Groups, AutoFixHigh, TouchApp
-} from '@mui/icons-material';
-import { formatDate } from '../yardimcilar/tarihIslemleri';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+    Box,
+    Fade,
+    Paper,
+    Stack,
+    Typography,
+    TextField,
+    Button,
+    Table,
+    TableHead,
+    TableRow,
+    TableCell,
+    TableBody,
+    Avatar,
+    LinearProgress,
+    Chip,
+    Container,
+    alpha,
+    Grid,
+    CardActionArea,
+    CircularProgress,
+    Tooltip,
+    useTheme,
+} from "@mui/material";
+import { Search, Assignment, FilterAlt, Star, Groups, AutoFixHigh, TouchApp } from "@mui/icons-material";
+import { formatDate } from "../yardimcilar/tarihIslemleri";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 const PEOPLE = ["HALİT BAKACAK", "IŞIL GÖKÇE KATRAN", "YASEMİN YILMAZ", "İDİL ÇEVİK"];
 const normTR = (s) => (s ?? "").toString().trim().toLocaleUpperCase("tr-TR").replace(/\s+/g, " ");
@@ -20,8 +35,8 @@ const normTR = (s) => (s ?? "").toString().trim().toLocaleUpperCase("tr-TR").rep
 const toInputDate = (d) => {
     const x = new Date(d);
     const yyyy = x.getFullYear();
-    const mm = String(x.getMonth() + 1).padStart(2, '0');
-    const dd = String(x.getDate()).padStart(2, '0');
+    const mm = String(x.getMonth() + 1).padStart(2, "0");
+    const dd = String(x.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
 };
 
@@ -29,56 +44,135 @@ const toInputDate = (d) => {
 const startOfDay = (yyyyMmDd) => new Date(`${yyyyMmDd}T00:00:00`);
 const endOfDay = (yyyyMmDd) => new Date(`${yyyyMmDd}T23:59:59.999`);
 
-// --- KPI KARTI ---
+/* ---------------- KPI KARTI ---------------- */
 function PersonKPICard({ name, data, isSelected, onClick, diffDays }) {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === "dark";
+
     const { total, manualCount, autoCount } = data;
-    const manualDailyAvg = (manualCount / diffDays).toFixed(1);
+    const safeDays = Math.max(Number(diffDays) || 1, 1);
+    const manualDailyAvg = (manualCount / safeDays).toFixed(1);
 
     const getStatusColor = () => {
-        if (manualDailyAvg > 35) return '#10b981';
-        if (manualDailyAvg > 15) return '#3b82f6';
-        return '#f59e0b';
+        if (Number(manualDailyAvg) > 35) return "#10b981";
+        if (Number(manualDailyAvg) > 15) return "#3b82f6";
+        return "#f59e0b";
     };
 
     const color = getStatusColor();
 
     return (
-        <Paper elevation={0} sx={{
-            borderRadius: '24px', border: '1px solid',
-            borderColor: isSelected ? color : '#f1f5f9',
-            bgcolor: isSelected ? alpha(color, 0.02) : '#fff',
-            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: isSelected ? 'translateY(-5px)' : 'none',
-            boxShadow: isSelected ? `0 20px 25px -5px ${alpha(color, 0.15)}` : '0 1px 3px rgba(0,0,0,0.05)'
-        }}>
-            <CardActionArea onClick={onClick} sx={{ p: 3, borderRadius: '24px' }}>
+        <Paper
+            elevation={0}
+            sx={{
+                borderRadius: "24px",
+                border: "1px solid",
+                borderColor: isSelected ? color : alpha(theme.palette.divider, isDark ? 0.65 : 1),
+                bgcolor: isSelected ? alpha(color, isDark ? 0.10 : 0.02) : theme.palette.background.paper,
+                transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                transform: isSelected ? "translateY(-5px)" : "none",
+                boxShadow: isSelected
+                    ? `0 20px 25px -5px ${alpha(color, isDark ? 0.25 : 0.15)}`
+                    : isDark
+                        ? "0 10px 30px rgba(0,0,0,0.35)"
+                        : "0 1px 3px rgba(0,0,0,0.05)",
+            }}
+        >
+            <CardActionArea onClick={onClick} sx={{ p: 3, borderRadius: "24px" }}>
                 <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-                    <Avatar sx={{
-                        bgcolor: alpha(color, 0.1), color: color,
-                        width: 56, height: 56, fontWeight: 'bold',
-                        fontSize: '1.2rem', border: `2px solid ${alpha(color, 0.2)}`
-                    }}>
+                    <Avatar
+                        sx={{
+                            bgcolor: alpha(color, isDark ? 0.20 : 0.10),
+                            color: color,
+                            width: 56,
+                            height: 56,
+                            fontWeight: "bold",
+                            fontSize: "1.2rem",
+                            border: `2px solid ${alpha(color, isDark ? 0.35 : 0.2)}`,
+                        }}
+                    >
                         {name.charAt(0)}
                     </Avatar>
-                    <Box sx={{ flex: 1 }}>
-                        <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#1e293b', lineHeight: 1.2 }}>{name}</Typography>
-                        <Typography sx={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, mt: 0.5, letterSpacing: 1 }}>OPERATÖR SKORU</Typography>
+
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                            sx={{
+                                fontWeight: 800,
+                                fontSize: "1.1rem",
+                                color: theme.palette.text.primary,
+                                lineHeight: 1.2,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                            }}
+                        >
+                            {name}
+                        </Typography>
+                        <Typography
+                            sx={{
+                                fontSize: "0.7rem",
+                                color: theme.palette.text.secondary,
+                                fontWeight: 700,
+                                mt: 0.5,
+                                letterSpacing: 1,
+                            }}
+                        >
+                            OPERATÖR SKORU
+                        </Typography>
                     </Box>
-                    {isSelected && <Star sx={{ color: color }} />}
+
+                    {isSelected && <Star sx={{ color }} />}
                 </Stack>
 
                 <Grid container spacing={2}>
                     <Grid item xs={6}>
-                        <Box sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: '16px', textAlign: 'center' }}>
-                            <Typography sx={{ fontSize: '0.6rem', color: '#94a3b8', fontWeight: 800, mb: 0.5 }}>MANUEL GÜNLÜK</Typography>
-                            <Typography sx={{ fontWeight: 900, color: '#0f172a', fontSize: '1.2rem' }}>{manualDailyAvg}</Typography>
+                        <Box
+                            sx={{
+                                p: 1.5,
+                                bgcolor: alpha(theme.palette.text.primary, isDark ? 0.06 : 0.03),
+                                borderRadius: "16px",
+                                textAlign: "center",
+                                border: `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}`,
+                            }}
+                        >
+                            <Typography
+                                sx={{
+                                    fontSize: "0.6rem",
+                                    color: theme.palette.text.secondary,
+                                    fontWeight: 900,
+                                    mb: 0.5,
+                                }}
+                            >
+                                MANUEL GÜNLÜK
+                            </Typography>
+                            <Typography sx={{ fontWeight: 900, color: theme.palette.text.primary, fontSize: "1.2rem" }}>
+                                {manualDailyAvg}
+                            </Typography>
                         </Box>
                     </Grid>
+
                     <Grid item xs={6}>
-                        <Box sx={{ p: 1.5, bgcolor: alpha(color, 0.05), borderRadius: '16px', textAlign: 'center' }}>
-                            <Typography sx={{ fontSize: '0.6rem', color: color, fontWeight: 800, mb: 0.5 }}>GERÇEK VERİM</Typography>
-                            <Typography sx={{ fontWeight: 900, color: color, fontSize: '1.2rem' }}>
-                                %{Math.min(100, (manualDailyAvg / 40) * 100).toFixed(0)}
+                        <Box
+                            sx={{
+                                p: 1.5,
+                                bgcolor: alpha(color, isDark ? 0.18 : 0.05),
+                                borderRadius: "16px",
+                                textAlign: "center",
+                                border: `1px solid ${alpha(color, isDark ? 0.35 : 0.15)}`,
+                            }}
+                        >
+                            <Typography
+                                sx={{
+                                    fontSize: "0.6rem",
+                                    color: color,
+                                    fontWeight: 900,
+                                    mb: 0.5,
+                                }}
+                            >
+                                GERÇEK VERİM
+                            </Typography>
+                            <Typography sx={{ fontWeight: 900, color: color, fontSize: "1.2rem" }}>
+                                %{Math.min(100, (Number(manualDailyAvg) / 40) * 100).toFixed(0)}
                             </Typography>
                         </Box>
                     </Grid>
@@ -86,12 +180,38 @@ function PersonKPICard({ name, data, isSelected, onClick, diffDays }) {
 
                 <Stack spacing={1} sx={{ mt: 3 }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>Efor Dağılımı</Typography>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color: '#1e293b' }}>{manualCount} Manuel / {autoCount} Oto</Typography>
+                        <Typography sx={{ fontSize: "0.75rem", fontWeight: 700, color: theme.palette.text.secondary }}>
+                            Efor Dağılımı
+                        </Typography>
+                        <Typography sx={{ fontSize: "0.75rem", fontWeight: 900, color: theme.palette.text.primary }}>
+                            {manualCount} Manuel / {autoCount} Oto
+                        </Typography>
                     </Stack>
-                    <Box sx={{ height: 8, bgcolor: '#f1f5f9', borderRadius: 4, overflow: 'hidden', display: 'flex' }}>
-                        <Box sx={{ width: `${total ? (manualCount / total) * 100 : 0}%`, bgcolor: color, transition: '0.5s' }} />
-                        <Box sx={{ width: `${total ? (autoCount / total) * 100 : 0}%`, bgcolor: '#e2e8f0', transition: '0.5s' }} />
+
+                    <Box
+                        sx={{
+                            height: 8,
+                            bgcolor: alpha(theme.palette.text.primary, isDark ? 0.10 : 0.06),
+                            borderRadius: 4,
+                            overflow: "hidden",
+                            display: "flex",
+                            border: `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}`,
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                width: `${total ? (manualCount / total) * 100 : 0}%`,
+                                bgcolor: color,
+                                transition: "0.5s",
+                            }}
+                        />
+                        <Box
+                            sx={{
+                                width: `${total ? (autoCount / total) * 100 : 0}%`,
+                                bgcolor: alpha(theme.palette.text.primary, isDark ? 0.18 : 0.12),
+                                transition: "0.5s",
+                            }}
+                        />
                     </Box>
                 </Stack>
             </CardActionArea>
@@ -99,8 +219,11 @@ function PersonKPICard({ name, data, isSelected, onClick, diffDays }) {
     );
 }
 
-// --- ANA SAYFA ---
+/* ---------------- ANA SAYFA ---------------- */
 export default function SiparisAnaliz() {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === "dark";
+
     const [loading, setLoading] = useState(false);
     const [exporting, setExporting] = useState(false);
 
@@ -128,14 +251,14 @@ export default function SiparisAnaliz() {
             const startDate = startOfDay(startStr);
             const endDate = endOfDay(endStr);
 
-            const response = await fetch('/api/tmsorders/getall', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+            const response = await fetch("/api/tmsorders/getall", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     startDate: formatDate(startDate),
                     endDate: formatDate(endDate, true),
-                    userId: 1
-                })
+                    userId: 1,
+                }),
             });
 
             const result = await response.json();
@@ -147,27 +270,35 @@ export default function SiparisAnaliz() {
         }
     };
 
-    useEffect(() => { fetchSiparis(); }, []); // ilk yükleme
+    useEffect(() => {
+        fetchSiparis();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // ilk yükleme
 
     // --- MANUEL VS OTOMASYON ANALİZİ ---
     const personAnalysis = useMemo(() => {
-        const data = Object.fromEntries(PEOPLE.map(p => [p, {
-            total: 0, manualCount: 0, autoCount: 0, projects: {}
-        }]));
+        const data = Object.fromEntries(
+            PEOPLE.map((p) => [
+                p,
+                { total: 0, manualCount: 0, autoCount: 0, projects: {} },
+            ])
+        );
 
-        const sortedRows = [...rows].sort((a, b) => new Date(a.OrderCreatedDate) - new Date(b.OrderCreatedDate));
+        const sortedRows = [...rows].sort(
+            (a, b) => new Date(a.OrderCreatedDate) - new Date(b.OrderCreatedDate)
+        );
         const lastActionTimes = {};
 
-        sortedRows.forEach(r => {
+        sortedRows.forEach((r) => {
             const who = normTR(r.OrderCreatedBy);
-            const personKey = PEOPLE.find(p => normTR(p) === who);
+            const personKey = PEOPLE.find((p) => normTR(p) === who);
 
             if (personKey) {
-                const project = (r.ProjectName ?? '').trim() || 'TANIMSIZ PROJE';
+                const project = (r.ProjectName ?? "").trim() || "TANIMSIZ PROJE";
                 const currentTime = new Date(r.OrderCreatedDate).getTime();
                 const lastTime = lastActionTimes[who] || 0;
 
-                const isAuto = (currentTime - lastTime) < 10000;
+                const isAuto = currentTime - lastTime < 10000;
                 lastActionTimes[who] = currentTime;
 
                 data[personKey].total += 1;
@@ -178,7 +309,7 @@ export default function SiparisAnaliz() {
                     data[personKey].projects[project] = { total: 0, manual: 0, auto: 0 };
                 }
                 data[personKey].projects[project].total += 1;
-                data[personKey].projects[project][isAuto ? 'auto' : 'manual'] += 1;
+                data[personKey].projects[project][isAuto ? "auto" : "manual"] += 1;
             }
         });
 
@@ -189,7 +320,7 @@ export default function SiparisAnaliz() {
         const projects = personAnalysis[selectedPerson]?.projects || {};
         return Object.entries(projects)
             .map(([name, stats]) => ({ name, ...stats }))
-            .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            .filter((p) => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
             .sort((a, b) => b.manual - a.manual);
     }, [personAnalysis, selectedPerson, searchTerm]);
 
@@ -197,26 +328,33 @@ export default function SiparisAnaliz() {
     const handleExportAllPDF = async () => {
         setExporting(true);
         try {
-            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdf = new jsPDF("p", "mm", "a4");
             const pdfWidth = pdf.internal.pageSize.getWidth();
 
             for (let i = 0; i < PEOPLE.length; i++) {
                 setSelectedPerson(PEOPLE[i]);
-                await new Promise(r => setTimeout(r, 600));
+                // ui güncellensin
+                await new Promise((r) => setTimeout(r, 600));
 
-                const canvas = await html2canvas(reportRef.current, { scale: 2, backgroundColor: '#f8fafc' });
+                const canvas = await html2canvas(reportRef.current, {
+                    scale: 2,
+                    backgroundColor: isDark ? "#0b1220" : "#f8fafc",
+                    useCORS: true,
+                });
+
                 if (i !== 0) pdf.addPage();
 
                 pdf.addImage(
-                    canvas.toDataURL('image/png'),
-                    'PNG',
+                    canvas.toDataURL("image/png"),
+                    "PNG",
                     0,
                     0,
                     pdfWidth,
                     (canvas.height * pdfWidth) / canvas.width
                 );
             }
-            pdf.save(`Performans_Analizi_${new Date().toLocaleDateString()}.pdf`);
+
+            pdf.save(`Performans_Analizi_${new Date().toLocaleDateString("tr-TR")}.pdf`);
         } finally {
             setExporting(false);
         }
@@ -224,16 +362,45 @@ export default function SiparisAnaliz() {
 
     return (
         <Fade in timeout={800}>
-            <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: '#f8fafc', minHeight: '100vh' }}>
+            <Box
+                sx={{
+                    p: { xs: 2, md: 4 },
+                    bgcolor: theme.palette.background.default,
+                    minHeight: "100vh",
+                }}
+            >
                 <Container maxWidth="xl">
-
                     {/* Header */}
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
+                    <Stack
+                        direction={{ xs: "column", md: "row" }}
+                        spacing={2}
+                        justifyContent="space-between"
+                        alignItems="center"
+                        sx={{ mb: 4 }}
+                    >
                         <Box>
-                            <Typography sx={{ fontWeight: 1000, fontSize: '2rem', color: '#0f172a', letterSpacing: '-1px' }}>
-                                INSIGHT <span style={{ color: '#6366f1' }}>PERFORMANS</span>
+                            <Typography
+                                sx={{
+                                    fontWeight: 1000,
+                                    fontSize: "2rem",
+                                    color: theme.palette.text.primary,
+                                    letterSpacing: "-1px",
+                                }}
+                            >
+                                INSIGHT{" "}
+                                <span style={{ color: isDark ? "#a5b4fc" : "#6366f1" }}>
+                                    PERFORMANS
+                                </span>
                             </Typography>
-                            <Typography sx={{ color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography
+                                sx={{
+                                    color: theme.palette.text.secondary,
+                                    fontWeight: 700,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                }}
+                            >
                                 <TouchApp fontSize="small" /> Manuel vs Otomasyon Bazlı Analiz
                             </Typography>
                         </Box>
@@ -243,32 +410,62 @@ export default function SiparisAnaliz() {
                                 variant="contained"
                                 onClick={handleExportAllPDF}
                                 disabled={exporting || loading}
-                                startIcon={exporting ? <CircularProgress size={16} color="inherit" /> : <Groups />}
-                                sx={{ borderRadius: '14px', bgcolor: '#0f172a', px: 3, py: 1.5, textTransform: 'none', fontWeight: 700 }}
+                                startIcon={
+                                    exporting ? <CircularProgress size={16} color="inherit" /> : <Groups />
+                                }
+                                sx={{
+                                    borderRadius: "14px",
+                                    bgcolor: isDark ? "#e2e8f0" : "#0f172a",
+                                    color: isDark ? "#0b1220" : "#fff",
+                                    px: 3,
+                                    py: 1.5,
+                                    textTransform: "none",
+                                    fontWeight: 800,
+                                    "&:hover": {
+                                        bgcolor: isDark ? "#f1f5f9" : "#111827",
+                                    },
+                                }}
                             >
-                                {exporting ? 'Raporlanıyor...' : 'Tüm Ekip Analizini İndir'}
+                                {exporting ? "Raporlanıyor..." : "Tüm Ekip Analizini İndir"}
                             </Button>
 
-                            <Paper elevation={0} sx={{ p: 0.5, borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', bgcolor: '#fff' }}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 0.5,
+                                    borderRadius: "16px",
+                                    border: `1px solid ${alpha(theme.palette.divider, isDark ? 0.65 : 1)}`,
+                                    display: "flex",
+                                    bgcolor: theme.palette.background.paper,
+                                }}
+                            >
                                 <TextField
                                     type="date"
                                     size="small"
                                     value={startStr}
                                     onChange={(e) => setStartStr(e.target.value)}
-                                    sx={{ '& fieldset': { border: 'none' } }}
+                                    sx={{ "& fieldset": { border: "none" } }}
                                 />
                                 <TextField
                                     type="date"
                                     size="small"
                                     value={endStr}
                                     onChange={(e) => setEndStr(e.target.value)}
-                                    sx={{ '& fieldset': { border: 'none' } }}
+                                    sx={{ "& fieldset": { border: "none" } }}
                                 />
                                 <Button
                                     variant="contained"
                                     onClick={fetchSiparis}
                                     disabled={loading || exporting}
-                                    sx={{ borderRadius: '12px', bgcolor: '#0f172a', minWidth: 45 }}
+                                    sx={{
+                                        borderRadius: "12px",
+                                        bgcolor: isDark ? "#e2e8f0" : "#0f172a",
+                                        color: isDark ? "#0b1220" : "#fff",
+                                        minWidth: 45,
+                                        "&:hover": {
+                                            bgcolor: isDark ? "#f1f5f9" : "#111827",
+                                        },
+                                    }}
                                 >
                                     <FilterAlt fontSize="small" />
                                 </Button>
@@ -278,7 +475,7 @@ export default function SiparisAnaliz() {
 
                     <Box ref={reportRef} sx={{ p: 1 }}>
                         <Grid container spacing={3} sx={{ mb: 6 }}>
-                            {PEOPLE.map(p => (
+                            {PEOPLE.map((p) => (
                                 <Grid item xs={12} sm={6} lg={3} key={p}>
                                     <PersonKPICard
                                         name={p}
@@ -292,85 +489,191 @@ export default function SiparisAnaliz() {
                         </Grid>
 
                         {/* Detay Tablosu */}
-                        <Paper elevation={0} sx={{ borderRadius: '32px', border: '1px solid #e2e8f0', bgcolor: '#fff', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                            <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                borderRadius: "32px",
+                                border: `1px solid ${alpha(theme.palette.divider, isDark ? 0.65 : 1)}`,
+                                bgcolor: theme.palette.background.paper,
+                                overflow: "hidden",
+                                boxShadow: isDark ? "0 18px 50px rgba(0,0,0,0.45)" : "0 4px 6px -1px rgba(0,0,0,0.1)",
+                            }}
+                        >
+                            <Box
+                                sx={{
+                                    p: 3,
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    borderBottom: `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}`,
+                                    gap: 2,
+                                    flexWrap: "wrap",
+                                }}
+                            >
                                 <Stack direction="row" spacing={2} alignItems="center">
-                                    <Avatar sx={{ bgcolor: '#6366f1' }}><Assignment /></Avatar>
+                                    <Avatar
+                                        sx={{
+                                            bgcolor: isDark ? alpha("#a5b4fc", 0.18) : "#6366f1",
+                                            color: isDark ? "#a5b4fc" : "#fff",
+                                        }}
+                                    >
+                                        <Assignment />
+                                    </Avatar>
                                     <Box>
-                                        <Typography sx={{ fontWeight: 900, color: '#0f172a' }}>{selectedPerson} - PROJE AYRIMI</Typography>
-                                        <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>Proje bazlı manuel efor ve otomasyon tespiti</Typography>
+                                        <Typography sx={{ fontWeight: 950, color: theme.palette.text.primary }}>
+                                            {selectedPerson} - PROJE AYRIMI
+                                        </Typography>
+                                        <Typography sx={{ fontSize: "0.75rem", color: theme.palette.text.secondary, fontWeight: 700 }}>
+                                            Proje bazlı manuel efor ve otomasyon tespiti
+                                        </Typography>
                                     </Box>
                                 </Stack>
+
                                 <TextField
                                     placeholder="Proje ara..."
                                     size="small"
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     InputProps={{
-                                        startAdornment: <Search sx={{ mr: 1, color: '#94a3b8' }} />,
-                                        sx: { borderRadius: '12px', width: 250 }
+                                        startAdornment: <Search sx={{ mr: 1, color: theme.palette.text.secondary }} />,
+                                        sx: { borderRadius: "12px", width: 250 },
                                     }}
                                 />
                             </Box>
 
                             <Table>
-                                <TableHead sx={{ bgcolor: '#f8fafc' }}>
+                                <TableHead
+                                    sx={{
+                                        bgcolor: alpha(theme.palette.text.primary, isDark ? 0.06 : 0.03),
+                                    }}
+                                >
                                     <TableRow>
-                                        <TableCell sx={{ fontWeight: 800, pl: 4 }}>PROJE ADI</TableCell>
-                                        <TableCell align="center" sx={{ fontWeight: 800 }}>MANUEL İŞLEM</TableCell>
-                                        <TableCell align="center" sx={{ fontWeight: 800 }}>OTOMASYON</TableCell>
-                                        <TableCell align="center" sx={{ fontWeight: 800 }}>TÜR</TableCell>
-                                        <TableCell sx={{ fontWeight: 800, pr: 4 }}>VERİMLİLİK</TableCell>
+                                        <TableCell sx={{ fontWeight: 900, pl: 4, color: theme.palette.text.secondary }}>
+                                            PROJE ADI
+                                        </TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 900, color: theme.palette.text.secondary }}>
+                                            MANUEL İŞLEM
+                                        </TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 900, color: theme.palette.text.secondary }}>
+                                            OTOMASYON
+                                        </TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 900, color: theme.palette.text.secondary }}>
+                                            TÜR
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 900, pr: 4, color: theme.palette.text.secondary }}>
+                                            VERİMLİLİK
+                                        </TableCell>
                                     </TableRow>
                                 </TableHead>
+
                                 <TableBody>
-                                    {selectedPersonProjects.map((proj) => (
-                                        <TableRow key={proj.name} hover>
-                                            <TableCell sx={{ pl: 4, fontWeight: 700, color: '#334155' }}>{proj.name}</TableCell>
-                                            <TableCell align="center">
-                                                <Chip
-                                                    label={`${proj.manual} Adet`}
-                                                    size="small"
-                                                    icon={<TouchApp />}
-                                                    sx={{ bgcolor: alpha('#3b82f6', 0.1), color: '#3b82f6', fontWeight: 700 }}
-                                                />
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                <Chip
-                                                    label={`${proj.auto} Adet`}
-                                                    size="small"
-                                                    icon={<AutoFixHigh />}
-                                                    sx={{ bgcolor: alpha('#94a3b8', 0.1), color: '#64748b', fontWeight: 700 }}
-                                                />
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {proj.auto > proj.manual ?
-                                                    <Tooltip title="Bu projede yoğun otomasyon algılandı">
-                                                        <Chip label="SİSTEMSEL" size="small" sx={{ bgcolor: '#0f172a', color: '#fff', fontSize: '0.6rem' }} />
-                                                    </Tooltip>
-                                                    :
-                                                    <Chip label="MANUEL" size="small" variant="outlined" sx={{ fontSize: '0.6rem' }} />
-                                                }
-                                            </TableCell>
-                                            <TableCell sx={{ pr: 4, width: 220 }}>
-                                                <Stack direction="row" alignItems="center" spacing={1}>
-                                                    <LinearProgress
-                                                        variant="determinate"
-                                                        value={proj.total ? (proj.manual / proj.total) * 100 : 0}
+                                    {selectedPersonProjects.map((proj) => {
+                                        const manualPct = proj.total ? (proj.manual / proj.total) * 100 : 0;
+
+                                        return (
+                                            <TableRow
+                                                key={proj.name}
+                                                hover
+                                                sx={{
+                                                    "&:hover": {
+                                                        bgcolor: alpha(theme.palette.primary.main, isDark ? 0.08 : 0.04),
+                                                    },
+                                                }}
+                                            >
+                                                <TableCell sx={{ pl: 4, fontWeight: 800, color: theme.palette.text.primary }}>
+                                                    {proj.name}
+                                                </TableCell>
+
+                                                <TableCell align="center">
+                                                    <Chip
+                                                        label={`${proj.manual} Adet`}
+                                                        size="small"
+                                                        icon={<TouchApp />}
                                                         sx={{
-                                                            flex: 1,
-                                                            height: 6,
-                                                            borderRadius: 3,
-                                                            bgcolor: '#f1f5f9',
-                                                            '& .MuiLinearProgress-bar': { bgcolor: '#3b82f6' }
+                                                            bgcolor: alpha("#3b82f6", isDark ? 0.18 : 0.1),
+                                                            color: isDark ? "#93c5fd" : "#3b82f6",
+                                                            fontWeight: 800,
+                                                            border: `1px solid ${alpha("#3b82f6", isDark ? 0.22 : 0.16)}`,
                                                         }}
                                                     />
-                                                    <Typography sx={{ fontSize: '0.7rem', fontWeight: 800 }}>
-                                                        %{proj.total ? Math.round((proj.manual / proj.total) * 100) : 0} Mnl
-                                                    </Typography>
-                                                </Stack>
+                                                </TableCell>
+
+                                                <TableCell align="center">
+                                                    <Chip
+                                                        label={`${proj.auto} Adet`}
+                                                        size="small"
+                                                        icon={<AutoFixHigh />}
+                                                        sx={{
+                                                            bgcolor: alpha(theme.palette.text.secondary, isDark ? 0.18 : 0.1),
+                                                            color: theme.palette.text.secondary,
+                                                            fontWeight: 800,
+                                                            border: `1px solid ${alpha(theme.palette.divider, isDark ? 0.55 : 1)}`,
+                                                        }}
+                                                    />
+                                                </TableCell>
+
+                                                <TableCell align="center">
+                                                    {proj.auto > proj.manual ? (
+                                                        <Tooltip title="Bu projede yoğun otomasyon algılandı">
+                                                            <Chip
+                                                                label="SİSTEMSEL"
+                                                                size="small"
+                                                                sx={{
+                                                                    bgcolor: isDark ? alpha("#e2e8f0", 0.12) : "#0f172a",
+                                                                    color: isDark ? "#e2e8f0" : "#fff",
+                                                                    fontSize: "0.6rem",
+                                                                    fontWeight: 900,
+                                                                    border: isDark
+                                                                        ? `1px solid ${alpha("#e2e8f0", 0.22)}`
+                                                                        : "none",
+                                                                }}
+                                                            />
+                                                        </Tooltip>
+                                                    ) : (
+                                                        <Chip
+                                                            label="MANUEL"
+                                                            size="small"
+                                                            variant="outlined"
+                                                            sx={{
+                                                                fontSize: "0.6rem",
+                                                                fontWeight: 900,
+                                                                borderColor: alpha(theme.palette.divider, isDark ? 0.7 : 1),
+                                                                color: theme.palette.text.secondary,
+                                                            }}
+                                                        />
+                                                    )}
+                                                </TableCell>
+
+                                                <TableCell sx={{ pr: 4, width: 220 }}>
+                                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                                        <LinearProgress
+                                                            variant="determinate"
+                                                            value={manualPct}
+                                                            sx={{
+                                                                flex: 1,
+                                                                height: 6,
+                                                                borderRadius: 3,
+                                                                bgcolor: alpha(theme.palette.text.primary, isDark ? 0.12 : 0.06),
+                                                                "& .MuiLinearProgress-bar": {
+                                                                    bgcolor: theme.palette.primary.main,
+                                                                },
+                                                            }}
+                                                        />
+                                                        <Typography sx={{ fontSize: "0.7rem", fontWeight: 900, color: theme.palette.text.primary }}>
+                                                            %{Math.round(manualPct)} Mnl
+                                                        </Typography>
+                                                    </Stack>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+
+                                    {selectedPersonProjects.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={5} sx={{ py: 6, textAlign: "center", color: theme.palette.text.secondary, fontWeight: 900 }}>
+                                                Sonuç bulunamadı.
                                             </TableCell>
                                         </TableRow>
-                                    ))}
+                                    )}
                                 </TableBody>
                             </Table>
                         </Paper>

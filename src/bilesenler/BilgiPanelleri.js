@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Box, Typography, Stack, styled, Button, Tooltip } from "@mui/material";
+import { useTheme, alpha } from "@mui/material/styles";
 import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { tr } from "date-fns/locale";
@@ -10,12 +11,23 @@ import { useNavigate } from "react-router-dom";
 // ✅ Panel (modal) bileşeni
 import KarsilastirmaPanel from "../sayfalar/karsilastirma";
 
-const GlassHeader = styled(Box)(() => ({
+/**
+ * NOTE:
+ * styled() içinde theme'yi kullanabilmek için callback ( { theme } ) şeklinde yazıyoruz.
+ */
+
+const GlassHeader = styled(Box)(({ theme }) => ({
     width: "100%",
     padding: "20px 40px",
-    background: "rgba(255, 255, 255, 0.6)",
+    background:
+        theme.palette.mode === "light"
+            ? "rgba(255, 255, 255, 0.6)"
+            : "rgba(2, 6, 23, 0.55)",
     backdropFilter: "blur(20px) saturate(180%)",
-    borderBottom: "1px solid rgba(0, 0, 0, 0.06)",
+    borderBottom:
+        theme.palette.mode === "light"
+            ? "1px solid rgba(0, 0, 0, 0.06)"
+            : `1px solid ${alpha(theme.palette.common.white, 0.08)}`,
     position: "sticky",
     top: 0,
     zIndex: 1000,
@@ -24,16 +36,23 @@ const GlassHeader = styled(Box)(() => ({
     justifyContent: "space-between",
 }));
 
-const DatePickerWrapper = styled(Box)(() => ({
+const DatePickerWrapper = styled(Box)(({ theme }) => ({
     display: "flex",
     alignItems: "center",
-    background: "#f1f5f9",
+    background:
+        theme.palette.mode === "light"
+            ? "#f1f5f9"
+            : alpha(theme.palette.common.white, 0.06),
     padding: "4px",
     borderRadius: "16px",
     gap: "4px",
+    border:
+        theme.palette.mode === "light"
+            ? "1px solid #e2e8f0"
+            : `1px solid ${alpha(theme.palette.common.white, 0.10)}`,
 }));
 
-const StyledPicker = styled(Box)(() => ({
+const StyledPicker = styled(Box)(({ theme }) => ({
     "& .MuiOutlinedInput-root": {
         borderRadius: "12px",
         backgroundColor: "transparent",
@@ -41,32 +60,62 @@ const StyledPicker = styled(Box)(() => ({
         fontSize: "0.85rem",
         width: "190px",
         border: "none",
+        color: theme.palette.text.primary,
+
         "& fieldset": { border: "none" },
+
         "&:hover": {
-            backgroundColor: "#fff",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.04)",
+            backgroundColor:
+                theme.palette.mode === "light"
+                    ? "#fff"
+                    : alpha(theme.palette.common.white, 0.06),
+            boxShadow:
+                theme.palette.mode === "light"
+                    ? "0 4px 12px rgba(0,0,0,0.04)"
+                    : "0 4px 14px rgba(0,0,0,0.35)",
         },
+
         "&.Mui-focused": {
-            backgroundColor: "#fff",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            backgroundColor:
+                theme.palette.mode === "light"
+                    ? "#fff"
+                    : alpha(theme.palette.common.white, 0.08),
+            boxShadow:
+                theme.palette.mode === "light"
+                    ? "0 4px 12px rgba(0,0,0,0.08)"
+                    : "0 6px 18px rgba(0,0,0,0.45)",
         },
+    },
+
+    // Input / label / icon renkleri
+    "& .MuiInputBase-input": {
+        color: theme.palette.text.primary,
+    },
+    "& .MuiInputAdornment-root, & .MuiSvgIcon-root": {
+        color: theme.palette.text.secondary,
     },
 }));
 
-const RefreshButton = styled(Button)(() => ({
+const RefreshButton = styled(Button)(({ theme }) => ({
     borderRadius: "14px",
     padding: "10px 24px",
     textTransform: "none",
     fontWeight: 800,
-    background: "#0f172a",
-    color: "#fff",
+    background: theme.palette.mode === "light" ? "#0f172a" : "#e2e8f0",
+    color: theme.palette.mode === "light" ? "#fff" : "#0f172a",
     fontSize: "0.85rem",
     gap: "10px",
-    boxShadow: "0 10px 20px -5px rgba(15, 23, 42, 0.2)",
+    boxShadow:
+        theme.palette.mode === "light"
+            ? "0 10px 20px -5px rgba(15, 23, 42, 0.2)"
+            : "0 10px 20px -5px rgba(0,0,0,0.55)",
     "&:hover": {
-        background: "#334155",
+        background: theme.palette.mode === "light" ? "#334155" : "#cbd5e1",
         transform: "translateY(-1px)",
-        boxShadow: "0 12px 24px -5px rgba(15, 23, 42, 0.3)",
+        boxShadow:
+            theme.palette.mode === "light"
+                ? "0 12px 24px -5px rgba(15, 23, 42, 0.3)"
+                : "0 14px 26px -6px rgba(0,0,0,0.6)",
     },
     "&:active": { transform: "translateY(0)" },
 }));
@@ -116,6 +165,7 @@ export default function BilgiPanelleri({
     showVeriAktarimButton = true,
     showCompareButton = true,
 }) {
+    const theme = useTheme();
     const navigate = useNavigate();
 
     // ✅ Karşılaştırma modal state
@@ -125,19 +175,17 @@ export default function BilgiPanelleri({
     const [draftStart, setDraftStart] = useState(startDate);
     const [draftEnd, setDraftEnd] = useState(endDate);
 
-    // Parent tarihleri değişirse (örn. reset) draft’ı senkronla
     useEffect(() => setDraftStart(startDate), [startDate]);
     useEffect(() => setDraftEnd(endDate), [endDate]);
 
     const handleCompareClick = () => setCompareOpen(true);
 
-    // ✅ Sadece butona basınca uygula + (istersen) çek
     const handleApply = () => {
         setStartDate(draftStart);
         setEndDate(draftEnd);
 
         // handleFilter parametre almıyorsa handleFilter() bırak.
-        // Parametre alıyorsa üstte ona göre kullan:
+        // Parametre alıyorsa: handleFilter(draftStart, draftEnd)
         if (handleFilter) handleFilter(draftStart, draftEnd);
     };
 
@@ -150,7 +198,7 @@ export default function BilgiPanelleri({
                         variant="h5"
                         sx={{
                             fontWeight: 850,
-                            color: "#0f172a",
+                            color: theme.palette.text.primary,
                             letterSpacing: "-1px",
                             display: "flex",
                             alignItems: "center",
@@ -168,7 +216,15 @@ export default function BilgiPanelleri({
                         />
                         Canlı Operasyon Paneli
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600, ml: 3.5 }}>
+
+                    <Typography
+                        variant="caption"
+                        sx={{
+                            color: theme.palette.text.secondary,
+                            fontWeight: 600,
+                            ml: 3.5,
+                        }}
+                    >
                         Veriler otomatik olarak senkronize ediliyor
                     </Typography>
                 </Stack>
@@ -178,7 +234,7 @@ export default function BilgiPanelleri({
                     {!hideDate && (
                         <>
                             <DatePickerWrapper>
-                                <Box sx={{ px: 2, color: "#94a3b8" }}>
+                                <Box sx={{ px: 2, color: theme.palette.text.secondary }}>
                                     <FaCalendarAlt size={14} />
                                 </Box>
 
@@ -191,7 +247,16 @@ export default function BilgiPanelleri({
                                     />
                                 </StyledPicker>
 
-                                <Box sx={{ width: 1, height: 20, bgcolor: "#e2e8f0" }} />
+                                <Box
+                                    sx={{
+                                        width: 1,
+                                        height: 20,
+                                        bgcolor:
+                                            theme.palette.mode === "light"
+                                                ? "#e2e8f0"
+                                                : alpha(theme.palette.common.white, 0.14),
+                                    }}
+                                />
 
                                 <StyledPicker>
                                     <DateTimePicker
@@ -208,11 +273,24 @@ export default function BilgiPanelleri({
                                     sx={{
                                         p: 1.5,
                                         borderRadius: "12px",
-                                        color: "#64748b",
+                                        color: theme.palette.text.secondary,
                                         cursor: "pointer",
-                                        border: "1px solid #e2e8f0",
+                                        border:
+                                            theme.palette.mode === "light"
+                                                ? "1px solid #e2e8f0"
+                                                : `1px solid ${alpha(theme.palette.common.white, 0.12)}`,
                                         display: "flex",
-                                        "&:hover": { bgcolor: "#fff", color: "#0f172a" },
+                                        background:
+                                            theme.palette.mode === "light"
+                                                ? "transparent"
+                                                : alpha(theme.palette.common.white, 0.03),
+                                        "&:hover": {
+                                            bgcolor:
+                                                theme.palette.mode === "light"
+                                                    ? "#fff"
+                                                    : alpha(theme.palette.common.white, 0.06),
+                                            color: theme.palette.text.primary,
+                                        },
                                     }}
                                 >
                                     <FaSlidersH size={18} />
